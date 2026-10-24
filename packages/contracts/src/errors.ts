@@ -10,6 +10,8 @@ export const ErrorCodeSchema = z.enum([
   'ACTION_INELIGIBLE',
   'PAYLOAD_TOO_LARGE',
   'RATE_LIMITED',
+  /** The sign-in email could not be handed to the email provider. */
+  'EMAIL_DELIVERY_FAILED',
   'INTERNAL',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCodeSchema>;
@@ -24,6 +26,7 @@ export const ERROR_HTTP_STATUS = {
   ACTION_INELIGIBLE: 422,
   PAYLOAD_TOO_LARGE: 413,
   RATE_LIMITED: 429,
+  EMAIL_DELIVERY_FAILED: 502,
   INTERNAL: 500,
 } as const satisfies Record<ErrorCode, number>;
 

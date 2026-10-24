@@ -5,7 +5,8 @@ import { AppError } from '../application/errors';
 import type { AppEnv } from '../env';
 import { assertSafeEnvironment } from '../infrastructure/env-guard';
 import { errorHandler, notFoundHandler } from './errors';
-import { authFor, type SessionResolver } from './middleware/auth';
+import { createEmailSender } from '../infrastructure/auth/email-sender';
+import { authFor, trackDelivery, type SessionResolver } from './middleware/auth';
 import { apiCors } from './middleware/cors';
 import { requestContext } from './middleware/request-context';
 import { campaignRoutes } from './routes/campaigns';
@@ -55,7 +56,17 @@ export function createApp(options: AppOptions = {}) {
   app.use('/api/auth/*', limitBody(AUTH_BODY_LIMIT_BYTES));
   app.use('/api/v1/*', limitBody(API_BODY_LIMIT_BYTES));
 
-  app.on(['GET', 'POST'], '/api/auth/*', (c) => authFor(c).handler(c.req.raw));
+  app.on(['GET', 'POST'], '/api/auth/*', async (c) => {
+    const delivery = trackDelivery(createEmailSender(c.env));
+    const res = await authFor(c, delivery.sender).handler(c.req.raw);
+    if (delivery.failed()) {
+      throw new AppError(
+        'EMAIL_DELIVERY_FAILED',
+        'We couldn’t send your sign-in code. Try again shortly.',
+      );
+    }
+    return res;
+  });
 
   const v1 = new Hono<AppEnv>()
     .route('/health', healthRoutes)

@@ -4,15 +4,37 @@ import { AppError } from '../../application/errors';
 import type { AppEnv } from '../../env';
 import { createAuth, type AuthUser } from '../../infrastructure/auth/better-auth';
 import { resolveDevIdentity } from '../../infrastructure/auth/dev-identity';
-import { createEmailSender } from '../../infrastructure/auth/email-sender';
+import { createEmailSender, type EmailSender } from '../../infrastructure/auth/email-sender';
 
 export type SessionResolver = (c: Context<AppEnv>) => Promise<AuthUser | null>;
 
-export function authFor(c: Context<AppEnv>) {
+export function authFor(c: Context<AppEnv>, sender: EmailSender = createEmailSender(c.env)) {
   return createAuth(c.env, {
     baseURL: c.env.BETTER_AUTH_URL ?? new URL(c.req.url).origin,
-    sender: createEmailSender(c.env),
+    sender,
   });
+}
+
+/**
+ * Wraps a sender so the caller can tell whether delivery failed. Better Auth awaits
+ * `sendVerificationOTP` but swallows its errors and still answers `{ success: true }`, which
+ * would tell the player a code is on its way when it isn't.
+ */
+export function trackDelivery(inner: EmailSender): { sender: EmailSender; failed: () => boolean } {
+  let failed = false;
+  return {
+    sender: {
+      async sendOtp(input) {
+        try {
+          await inner.sendOtp(input);
+        } catch (err) {
+          failed = true;
+          throw err;
+        }
+      },
+    },
+    failed: () => failed,
+  };
 }
 
 /** Better Auth session → user: the session cookie (browser) or `Authorization: Bearer` (desktop,
