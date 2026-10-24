@@ -1,0 +1,96 @@
+// WHIP — single Worker serving the SPA (Static Assets) and the /api/v1 API.
+// See docs/architecture/01-overview.md §4 and infrastructure/cloudflare/README.md.
+//
+// Bindings are NOT inherited by named environments, so staging/production repeat them with
+// their own resource names. Run `pnpm cf-typegen` after changing bindings.
+//
+// The TOP LEVEL is the LOCAL-ONLY config (`wrangler dev`, `d1 … --local`, vitest). It is named
+// `whip-local`, points at `*-local` resources (never created remotely) and has `workers_dev: false`,
+// so a bare `wrangler deploy` (no `--env`) can never overwrite production with DEV_AUTH or the
+// local auth secret. Always deploy with `--env staging|production` (`pnpm deploy:staging|production`).
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "whip-local",
+  // CheatCode Media Group (the account that owns playwhip.com).
+  "account_id": "660a68b9eb6593c8ab0fefff75044d89",
+  "workers_dev": false,
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  // Better Auth relies on node:async_hooks (AsyncLocalStorage) and other node built-ins.
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "limits": { "cpu_ms": 30000 },
+
+  "assets": {
+    "directory": "../web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+
+  // Local only: DEV_AUTH enables the X-Whip-Dev-User header (refused outside ENVIRONMENT=local).
+  "vars": { "ENVIRONMENT": "local", "DEV_AUTH": "1" },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      // Local only; the all-zero id is a placeholder (wrangler keys the local DB by name/binding).
+      "database_name": "whip-core-local",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [{ "binding": "SAVES", "bucket_name": "whip-saves-local" }],
+  "durable_objects": {
+    "bindings": [{ "name": "CAMPAIGN", "class_name": "CampaignDO" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["CampaignDO"] }],
+  // Hourly maintenance sweep (src/index.ts `scheduled`): stale `initialising` campaigns and
+  // soft-deleted campaigns whose Durable Object wipe is unconfirmed.
+  "triggers": { "crons": ["17 * * * *"] },
+
+  "env": {
+    "staging": {
+      "name": "whip-staging",
+      "workers_dev": true,
+      "vars": { "ENVIRONMENT": "staging" },
+      "triggers": { "crons": ["17 * * * *"] },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "whip-core-staging",
+          "database_id": "00000000-0000-0000-0000-000000000001",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [{ "binding": "SAVES", "bucket_name": "whip-saves-staging" }],
+      "durable_objects": {
+        "bindings": [{ "name": "CAMPAIGN", "class_name": "CampaignDO" }]
+      },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["CampaignDO"] }]
+    },
+    "production": {
+      "name": "whip",
+      // playwhip.com is the only public entry point.
+      "workers_dev": false,
+      "routes": [{ "pattern": "playwhip.com", "custom_domain": true }],
+      "vars": { "ENVIRONMENT": "production", "EMAIL_FROM": "WHIP <signin@playwhip.com>" },
+      // Cloudflare Email Service (beta). playwhip.com must be onboarded for sending in the dashboard.
+      "send_email": [{ "name": "EMAIL" }],
+      "triggers": { "crons": ["17 * * * *"] },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "whip-core",
+          "database_id": "f384b36b-4a31-4130-95da-a44f3aad05c9",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [{ "binding": "SAVES", "bucket_name": "whip-saves" }],
+      "durable_objects": {
+        "bindings": [{ "name": "CAMPAIGN", "class_name": "CampaignDO" }]
+      },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["CampaignDO"] }]
+    }
+  }
+}

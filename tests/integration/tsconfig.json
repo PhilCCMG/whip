@@ -1,0 +1,14 @@
+{
+  "extends": "@whip/config/tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["@cloudflare/vitest-plugin/types", "node"]
+  },
+  "include": [
+    "test",
+    "vitest.config.ts",
+    "vitest.fake.config.ts",
+    "vitest.shared.ts",
+    "env.d.ts",
+    "../../apps/api/worker-configuration.d.ts"
+  ]
+}

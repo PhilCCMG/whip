@@ -1,0 +1,23 @@
+{
+  "name": "@whip/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@whip/domain": "workspace:*",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@whip/config": "workspace:*",
+    "typescript": "6.0.3",
+    "vitest": "4.1.12"
+  }
+}

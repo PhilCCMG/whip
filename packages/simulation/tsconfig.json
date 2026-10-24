@@ -1,0 +1,4 @@
+{
+  "extends": "@whip/config/tsconfig.base.json",
+  "include": ["src", "test", "vitest.config.ts"]
+}

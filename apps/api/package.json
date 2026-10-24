@@ -1,0 +1,37 @@
+{
+  "name": "@whip/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node ../../scripts/ensure-web-dist.mjs && wrangler dev --port 8787",
+    "build": "node ../../scripts/ensure-web-dist.mjs && wrangler deploy --dry-run --outdir dist --env production",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "cf-typegen": "wrangler types",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply whip-core-local --local",
+    "deploy": "node -e \"console.error('Refusing a bare deploy: use deploy:staging or deploy:production (wrangler --env).');process.exit(1)\"",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "0.9.1",
+    "@whip/content": "workspace:*",
+    "@whip/contracts": "workspace:*",
+    "@whip/domain": "workspace:*",
+    "@whip/simulation": "workspace:*",
+    "better-auth": "1.7.12",
+    "drizzle-orm": "0.45.4",
+    "hono": "4.13.13",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@whip/config": "workspace:*",
+    "drizzle-kit": "0.31.11",
+    "typescript": "6.0.3",
+    "vitest": "4.1.12",
+    "wrangler": "4.152.0"
+  }
+}

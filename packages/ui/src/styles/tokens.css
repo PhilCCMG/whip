@@ -1,0 +1,170 @@
+/*
+ * WHIP design tokens — "modern editorial meets bold indie strategy".
+ * docs/architecture/05-api-auth-frontend.md §3.
+ *
+ * Usage (app entry CSS, after `@import "tailwindcss";`):
+ *   @import "@whip/ui/tokens.css";
+ *   @source "../../../packages/ui/src";
+ *
+ * Fonts: the app loads Archivo (display) and Inter (UI) — self-hosted via @fontsource-variable.
+ *
+ * Two layers:
+ *   1. Brand palette (--color-ink, --color-paper, --color-whip, --color-moss-*): use directly
+ *      (`bg-paper text-ink`, `border-whip`).
+ *   2. shadcn/ui semantic variables (--background, --primary, …) mapped onto the brand palette,
+ *      so generated shadcn components pick up the WHIP look without edits.
+ */
+
+@theme {
+  /* Brand palette */
+  --color-ink: #0f1d1c; /* logo tile green-black */
+  --color-ink-brand: #0f1d1c; /* fixed logo tile colour, independent of theming */
+  --color-paper-bright: #faf8f5; /* logo letterforms */
+  --color-paper: #f3eee3;
+  --color-paper-deep: #e7e0d0;
+  --color-whip: #dd2928; /* logo red */
+  --color-whip-dark: #a91c16;
+
+  /* Muted greens for panels and rules */
+  --color-moss-50: #eef1ec;
+  --color-moss-100: #dde4da;
+  --color-moss-200: #bfcbb9;
+  --color-moss-400: #7f9277;
+  --color-moss-600: #4c5e47;
+  --color-moss-800: #27322a;
+  --color-moss-900: #1c241f;
+
+  /* Status */
+  --color-good: #3f8a57;
+  --color-good-strong: #2a6a3f;
+  --color-warning: #d39a2a;
+  --color-warning-strong: #8a5f0d;
+
+  /* Division lobbies */
+  --color-aye: #3f8a57;
+  --color-no: #dd2928;
+  --color-abstain: #b9ae93;
+  --color-unknown: #8b958d;
+
+  /* Motion (answering user actions only; disabled under prefers-reduced-motion) */
+  --animate-in-fade: whip-fade 140ms ease-out;
+  --animate-in-rise: whip-rise 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-in-left: whip-from-right 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-in-right: whip-from-left 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  @keyframes whip-fade {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes whip-rise {
+    from {
+      opacity: 0;
+      scale: 0.97;
+    }
+  }
+  @keyframes whip-from-right {
+    from {
+      translate: 24px 0;
+      opacity: 0;
+    }
+  }
+  @keyframes whip-from-left {
+    from {
+      translate: -24px 0;
+      opacity: 0;
+    }
+  }
+
+  /* Typography */
+  --font-display: 'Archivo Variable', 'Archivo', 'Arial Narrow', system-ui, sans-serif;
+  --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, monospace;
+
+  /* Hard edges by default — no rounded "app" look */
+  --radius-sm: 0px;
+  --radius-md: 2px;
+  --radius-lg: 4px;
+}
+
+:root {
+  --background: var(--color-paper);
+  --foreground: var(--color-ink);
+  --card: var(--color-paper);
+  --card-foreground: var(--color-ink);
+  --popover: var(--color-paper);
+  --popover-foreground: var(--color-ink);
+  --primary: var(--color-ink);
+  --primary-foreground: var(--color-paper);
+  --secondary: var(--color-moss-100);
+  --secondary-foreground: var(--color-ink);
+  --muted: var(--color-paper-deep);
+  --muted-foreground: var(--color-moss-600);
+  --accent: var(--color-moss-100);
+  --accent-foreground: var(--color-ink);
+  --destructive: var(--color-whip);
+  --border: var(--color-moss-200);
+  --input: var(--color-moss-200);
+  --ring: var(--color-whip);
+  --radius: 2px;
+}
+
+.dark {
+  --background: var(--color-ink);
+  --foreground: var(--color-paper);
+  --card: var(--color-moss-900);
+  --card-foreground: var(--color-paper);
+  --popover: var(--color-moss-900);
+  --popover-foreground: var(--color-paper);
+  --primary: var(--color-paper);
+  --primary-foreground: var(--color-ink);
+  --secondary: var(--color-moss-800);
+  --secondary-foreground: var(--color-paper);
+  --muted: var(--color-moss-800);
+  --muted-foreground: var(--color-moss-200);
+  --accent: var(--color-moss-800);
+  --accent-foreground: var(--color-paper);
+  --destructive: var(--color-whip);
+  --border: var(--color-moss-800);
+  --input: var(--color-moss-800);
+  --ring: var(--color-whip);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  /* Statistics use tabular numerals */
+  .tabular,
+  td,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "whip",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @whip/api --filter @whip/web run dev",
+    "build": "pnpm --filter @whip/web run build && pnpm --filter @whip/api run build",
+    "typecheck": "pnpm -r --no-bail run typecheck",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "pnpm --filter @whip/integration-tests run test",
+    "bench": "pnpm --filter @whip/simulation run bench",
+    "check": "pnpm typecheck && pnpm lint && pnpm test",
+    "db:migrate:local": "pnpm --filter @whip/api run db:migrate:local",
+    "deploy:staging": "pnpm --filter @whip/web run build && pnpm --filter @whip/api run deploy:staging",
+    "deploy:production": "pnpm --filter @whip/web run build && pnpm --filter @whip/api run deploy:production",
+    "db:generate": "pnpm --filter @whip/api run db:generate",
+    "cf-typegen": "pnpm --filter @whip/api run cf-typegen"
+  },
+  "devDependencies": {
+    "@whip/config": "workspace:*",
+    "eslint": "10.13.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "vitest": "4.1.12",
+    "jsdom": "30.1.3"
+  }
+}

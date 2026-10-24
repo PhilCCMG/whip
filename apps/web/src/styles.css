@@ -1,0 +1,36 @@
+@import 'tailwindcss';
+@import '@whip/ui/tokens.css';
+
+/* Scan the shared UI package for class names (it is consumed as TS source). */
+@source '../../../packages/ui/src';
+
+@layer base {
+  html {
+    background-color: var(--color-ink);
+    color-scheme: light;
+  }
+  :focus-visible {
+    outline-color: var(--color-whip);
+  }
+  ::selection {
+    background: var(--color-whip);
+    color: white;
+  }
+}
+
+/* Respect reduced motion everywhere, including Radix and toast transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, currentColor 25%, transparent) transparent;
+}

@@ -1,0 +1,75 @@
+name: Deploy
+
+# main → staging automatically (after CI passes on the same commit).
+# production → manual (workflow_dispatch) and gated by the "production" GitHub environment's
+# required reviewers. Configure both environments with the CLOUDFLARE_API_TOKEN and
+# CLOUDFLARE_ACCOUNT_ID secrets. See infrastructure/cloudflare/README.md.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [staging, production]
+        default: staging
+
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || 'staging' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+    env:
+      TARGET_ENV: ${{ github.event.inputs.environment || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build SPA
+        run: pnpm --filter @whip/web run build
+
+      - name: Resolve D1 database name
+        id: d1
+        run: |
+          if [ "$TARGET_ENV" = "production" ]; then echo "name=whip-core" >> "$GITHUB_OUTPUT";
+          else echo "name=whip-core-staging" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Apply D1 migrations (remote)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/api
+          packageManager: pnpm
+          wranglerVersion: '4.152.0'
+          command: d1 migrations apply ${{ steps.d1.outputs.name }} --remote --env ${{ env.TARGET_ENV }}
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/api
+          packageManager: pnpm
+          wranglerVersion: '4.152.0'
+          command: deploy --env ${{ env.TARGET_ENV }}

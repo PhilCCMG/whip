@@ -1,0 +1,9 @@
+# Copy to .dev.vars for local `wrangler dev`. Never commit .dev.vars.
+# Dev identity: X-Whip-Dev-User header is honoured only when ENVIRONMENT=local AND DEV_AUTH=1
+# (DEV_AUTH=1 is already set in wrangler.jsonc's local vars).
+DEV_AUTH=1
+BETTER_AUTH_SECRET=local-dev-secret-change-me-at-least-32-chars
+# Extra origins allowed to call /api/auth (e.g. the Vite dev server).
+AUTH_TRUSTED_ORIGINS=http://localhost:5173
+# TEST-ONLY: swap in the FakeEngine (refused outside ENVIRONMENT=local). The real engine is the default.
+# ENGINE=fake
