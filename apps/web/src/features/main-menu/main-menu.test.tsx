@@ -336,4 +336,23 @@ describe('menu sounds', () => {
       { normalizeWhitespace: false },
     );
   });
+
+  it('opens credit links through the platform adapter', async () => {
+    const user = userEvent.setup();
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    try {
+      renderApp('/?screen=credits');
+      await user.click(await screen.findByRole('link', { name: 'CC BY 4.0' }));
+      await waitFor(() =>
+        expect(open).toHaveBeenCalledWith(
+          'https://creativecommons.org/licenses/by/4.0/',
+          '_blank',
+          'noopener',
+        ),
+      );
+      expect(open).toHaveBeenCalledOnce();
+    } finally {
+      open.mockRestore();
+    }
+  });
 });

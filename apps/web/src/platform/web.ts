@@ -1,4 +1,5 @@
 import { apiBase as configuredApiBase } from './config';
+import { isExternalHttpsUrl } from './external';
 import type { Platform } from './types';
 
 /**
@@ -26,6 +27,12 @@ export function createWebPlatform(apiBase: string = configuredApiBase): Platform
       } catch {
         // Fullscreen refused (no user gesture, iframe policy): nothing to do.
       }
+    },
+    openExternal(url) {
+      if (isExternalHttpsUrl(url) && typeof window !== 'undefined') {
+        window.open(url, '_blank', 'noopener');
+      }
+      return Promise.resolve();
     },
     checkForUpdates: () => Promise.resolve(null),
   };

@@ -45,6 +45,11 @@ export interface Platform {
   quit(): Promise<void>;
   /** Toggle fullscreen. Desktop: the window; web: the Fullscreen API. */
   toggleFullscreen(): Promise<void>;
+  /**
+   * Open an https link in the system browser. Web: a new tab without `window.opener`; desktop: the
+   * opener plugin (scoped to an allowlist in capabilities/default.json). Non-https URLs are ignored.
+   */
+  openExternal(url: string): Promise<void>;
   /** A newer signed build, or null (always null on the web, or when the check fails). */
   checkForUpdates(): Promise<AvailableUpdate | null>;
 }

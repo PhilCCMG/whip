@@ -1,3 +1,4 @@
+import { isExternalHttpsUrl } from './external';
 import { bearerHeaders, readSessionToken } from './token';
 import type { TauriBridge, TauriUpdate } from './tauri-bridge';
 import type { AvailableUpdate, Platform, UpdateProgress } from './types';
@@ -101,6 +102,19 @@ export async function createDesktopPlatform(
     },
     async toggleFullscreen() {
       await bridge.core.invoke<boolean>(COMMANDS.toggleFullscreen);
+    },
+    async openExternal(url) {
+      if (!isExternalHttpsUrl(url)) return;
+      if (!bridge.opener) {
+        warn('opener plugin unavailable; cannot open external link', url);
+        return;
+      }
+      try {
+        await bridge.opener.openUrl(url);
+      } catch (e) {
+        // Outside the capability allowlist, or no default browser: nothing else to do.
+        warn('could not open external link', e);
+      }
     },
     async checkForUpdates() {
       if (!bridge.updater) return null;

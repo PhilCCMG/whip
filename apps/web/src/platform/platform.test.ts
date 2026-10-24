@@ -79,6 +79,21 @@ describe('web platform', () => {
     expect(request).toHaveBeenCalledOnce();
   });
 
+  it('opens https links in a new tab without an opener, and ignores anything else', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    try {
+      const web = createWebPlatform('');
+      await web.openExternal('https://freesound.org/s/213148/');
+      expect(open).toHaveBeenCalledWith('https://freesound.org/s/213148/', '_blank', 'noopener');
+      await web.openExternal('javascript:alert(1)');
+      await web.openExternal('http://example.com/');
+      await web.openExternal('not a url');
+      expect(open).toHaveBeenCalledOnce();
+    } finally {
+      open.mockRestore();
+    }
+  });
+
   it('getPlatform() returns the web platform outside a desktop build', async () => {
     const p = await getPlatform();
     expect(p.kind).toBe('web');
@@ -188,6 +203,22 @@ describe('desktop platform', () => {
     await found?.install((pr) => progress.push(pr.downloaded));
     expect(progress).toEqual([0, 40, 100, 100]);
     expect(process.relaunch).toHaveBeenCalledOnce();
+  });
+
+  it('opens https links with the opener plugin, ignoring other schemes and failures', async () => {
+    const { bridge } = fakeBridge({});
+    const openUrl = vi.fn((url: string) =>
+      url.includes('fail') ? Promise.reject(new Error('not allowed')) : Promise.resolve(),
+    );
+    bridge.opener = { openUrl };
+    const warn = vi.fn();
+    const p = await createDesktopPlatform(bridge, { ...desktopOpts, warn });
+    await p.openExternal('https://creativecommons.org/licenses/by/4.0/');
+    expect(openUrl).toHaveBeenCalledWith('https://creativecommons.org/licenses/by/4.0/');
+    await p.openExternal('file:///C:/Windows/System32/calc.exe');
+    expect(openUrl).toHaveBeenCalledOnce();
+    await expect(p.openExternal('https://fail.example/')).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalledOnce();
   });
 
   it('treats a failing update check as "no update"', async () => {

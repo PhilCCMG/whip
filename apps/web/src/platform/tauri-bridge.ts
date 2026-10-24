@@ -1,8 +1,8 @@
 /**
  * The slice of Tauri's JS API the desktop platform uses, read from `window.__TAURI__`
- * (`app.withGlobalTauri: true` in tauri.conf.json, which also injects the updater and process
- * plugin APIs). Using the globals instead of the `@tauri-apps/*` npm packages keeps apps/web free
- * of Tauri dependencies; the shapes below match @tauri-apps/api 2.x and plugin-updater 2.x.
+ * (`app.withGlobalTauri: true` in tauri.conf.json, which also injects the updater, process and
+ * opener plugin APIs). Using the globals instead of the `@tauri-apps/*` npm packages keeps apps/web free
+ * of Tauri dependencies; the shapes below match @tauri-apps/api 2.x and plugin-updater/opener 2.x.
  */
 
 export type UpdaterEvent =
@@ -23,6 +23,8 @@ export interface TauriBridge {
   app: { getVersion(): Promise<string> };
   updater?: { check(): Promise<TauriUpdate | null> };
   process?: { exit(code?: number): Promise<void>; relaunch(): Promise<void> };
+  /** @tauri-apps/plugin-opener 2.x. */
+  opener?: { openUrl(url: string, openWith?: string): Promise<void> };
 }
 
 declare global {

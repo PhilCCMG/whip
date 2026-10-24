@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The WHIP main window: app info, fullscreen, quit/relaunch and signed updates. App commands (session token, toggle_fullscreen) are allowed by default.",
+  "description": "The WHIP main window: app info, fullscreen, quit/relaunch, signed updates, and opening allowlisted https links (Credits) in the system browser. App commands (session token, toggle_fullscreen) are allowed by default.",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -9,6 +9,14 @@
     "core:window:allow-is-fullscreen",
     "updater:default",
     "process:allow-exit",
-    "process:allow-restart"
+    "process:allow-restart",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "https://creativecommons.org/*" },
+        { "url": "https://freesound.org/*" },
+        { "url": "https://playwhip.com/*" }
+      ]
+    }
   ]
 }

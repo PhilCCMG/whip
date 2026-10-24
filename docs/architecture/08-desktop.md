@@ -17,7 +17,9 @@ apps/desktop/                       @whip/desktop
   dist/                             (built) the SPA in `desktop` mode — tauri frontendDist
   src-tauri/
     tauri.conf.json                 window, CSP, bundle targets, updater pubkey + endpoint
-    capabilities/default.json       core + fullscreen + updater + process(exit, restart)
+    capabilities/default.json       core + fullscreen + updater + process(exit, restart) +
+                                    opener:allow-open-url (https allowlist: creativecommons.org,
+                                    freesound.org, playwhip.com)
     src/lib.rs                      plugins, commands, hidden-until-ready window
     src/session.rs                  session_token_get/set/clear → keyring (OS credential store)
     src/shell.js                    injected before the SPA: F11/Alt+Enter, show-on-boot-ready,
@@ -224,6 +226,7 @@ CI (`ci.yml`, job `desktop`) runs a cheap gate on every PR: version sync, deskto
 | `captureSessionToken(res)` / `setSessionToken` / `clearSessionToken` / `hasSessionToken` | no-ops / false | OS credential store |
 | `quit()` | no-op | exit |
 | `toggleFullscreen()` | Fullscreen API | window fullscreen |
+| `openExternal(url)` | `window.open(url, '_blank', 'noopener')` | system browser via `tauri-plugin-opener` (URL allowlist in the capability; the webview ignores `target="_blank"`). Both ignore non-https URLs |
 | `appVersion` | null | `0.1.0` |
 | `checkForUpdates()` | null | `AvailableUpdate { version, notes, install(onProgress) }` |
 | `signalBootReady()` | harmless | shows the hidden window |
@@ -231,7 +234,7 @@ CI (`ci.yml`, job `desktop`) runs a cheap gate on every PR: version sync, deskto
 | `checkCompatibility()`, `compareVersions()` | | health-based gating |
 
 The desktop implementation uses Tauri's injected globals (`app.withGlobalTauri: true`, which
-also injects the updater and process plugin APIs as non-enumerable properties). It does not use
+also injects the updater, process and opener plugin APIs as non-enumerable properties). It does not use
 the `@tauri-apps/*` npm packages, so apps/web has no new dependencies. `tauri-bridge.ts` types the
 small slice we use. If the architect prefers the npm packages, add `@tauri-apps/api@2.12.4`,
 `@tauri-apps/plugin-updater@2.14.0` and `@tauri-apps/plugin-process@2.4.0` to apps/web and swap

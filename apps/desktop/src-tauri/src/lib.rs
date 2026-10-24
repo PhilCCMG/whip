@@ -2,7 +2,8 @@
 //!
 //! A thin Tauri v2 host around the bundled SPA. All game data comes from the cloud API; the Rust
 //! side only owns what a browser can't do: the OS credential store for the session token,
-//! fullscreen, single instance, window-state persistence and signed auto-updates.
+//! fullscreen, single instance, window-state persistence, signed auto-updates and opening
+//! allowlisted https links in the system browser.
 
 mod session;
 
@@ -69,6 +70,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(
             tauri::plugin::Builder::<tauri::Wry, ()>::new("whip-shell")
                 .js_init_script(script)

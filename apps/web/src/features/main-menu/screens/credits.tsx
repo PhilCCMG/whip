@@ -1,17 +1,26 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type MouseEvent, type ReactNode } from 'react';
 import studioLogo from '../../../assets/ccmg-logo-white.svg';
 import { AFFILIATION_NOTICE, COPYRIGHT, FICTION_NOTICE, STUDIO_NAME } from '../../boot/legal-copy';
+import { getPlatform } from '../../../platform';
 import { APP_VERSION } from '../copy';
 import { useBackKey } from '../keys';
 import { ScreenHeader } from '../screen-kit';
 
-/** Opens in a new tab on the web (no `window.opener`); the desktop shell handles it natively. */
+/**
+ * Opens via the platform adapter: a new tab on the web (no `window.opener`), the system browser on
+ * desktop (a webview ignores `target="_blank"`). The attributes stay for semantics and fallbacks.
+ */
 function ExternalLink({ href, children }: { href: string; children: ReactNode }) {
+  const open = (e: MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    void getPlatform().then((p) => p.openExternal(href));
+  };
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={open}
       className="text-paper-bright underline decoration-paper/40 underline-offset-2 hover:decoration-paper-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-whip"
     >
       {children}
