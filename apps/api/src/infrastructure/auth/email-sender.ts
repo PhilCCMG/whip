@@ -51,11 +51,14 @@ export class ResendEmailSender implements EmailSender {
   }
 }
 
-/** Minimal shape of the Cloudflare Email Service `send_email` binding (structured message form). */
+/**
+ * The subset of the Cloudflare Email Service `send_email` binding we use (the structured-message
+ * overload). The generated `SendEmail` type is assignable to it, and tests can fake it simply.
+ */
 export interface EmailServiceBinding {
   send(message: {
     to: string;
-    from: string | { email: string; name?: string };
+    from: string | { email: string; name: string };
     subject: string;
     text?: string;
     html?: string;
@@ -70,10 +73,11 @@ export class CloudflareEmailSender implements EmailSender {
   ) {}
 
   async sendOtp({ to, otp }: CapturedOtp): Promise<void> {
+    const { email, name } = this.from;
     try {
       await this.binding.send({
         to,
-        from: this.from,
+        from: name ? { email, name } : email,
         subject: `Your WHIP sign-in code: ${otp}`,
         text: `Your WHIP sign-in code is ${otp}. It expires in 10 minutes.\n\nIf you did not ask for this, you can ignore this email.`,
         html: otpHtml(otp),
@@ -82,7 +86,8 @@ export class CloudflareEmailSender implements EmailSender {
       const code =
         typeof err === 'object' && err !== null && 'code' in err ? String(err.code) : 'unknown';
       logger.error('email_send_failed', { provider: 'cloudflare', code });
-      throw new Error('Email delivery failed.');
+      // The cause stays server-side; callers only ever see the generic message.
+      throw new Error('Email delivery failed.', { cause: err });
     }
   }
 }
@@ -92,7 +97,7 @@ function otpHtml(otp: string): string {
     '<div style="font-family:Inter,Arial,sans-serif;background:#0f1d1c;color:#faf8f5;padding:32px">',
     '<p style="font-size:13px;letter-spacing:.08em;margin:0 0 8px;color:#dd2928">WHIP</p>',
     '<p style="font-size:16px;margin:0 0 16px">Your sign-in code</p>',
-    `<p style=\"font-size:36px;font-weight:800;letter-spacing:.2em;margin:0 0 16px\">${otp}</p>`,
+    `<p style="font-size:36px;font-weight:800;letter-spacing:.2em;margin:0 0 16px">${otp}</p>`,
     '<p style="font-size:13px;opacity:.7;margin:0">It expires in 10 minutes. If you did not ask for this, ignore this email.</p>',
     '</div>',
   ].join('');

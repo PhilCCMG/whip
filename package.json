@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "pnpm --parallel --filter @whip/api --filter @whip/web run dev",
     "build": "pnpm --filter @whip/web run build && pnpm --filter @whip/api run build",
-    "typecheck": "pnpm -r --no-bail run typecheck",
+    "typecheck": "pnpm -r run typecheck",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

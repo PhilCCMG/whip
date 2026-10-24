@@ -7,7 +7,12 @@ import type { AuthUser } from './infrastructure/auth/better-auth';
  * Secrets and optional vars that are not in every wrangler env are declared here so production
  * code can't forget them.
  */
-export interface Env extends Omit<Cloudflare.Env, 'DEV_AUTH' | 'BETTER_AUTH_SECRET'> {
+export interface Env extends Omit<
+  Cloudflare.Env,
+  'DEV_AUTH' | 'BETTER_AUTH_SECRET' | 'EMAIL' | 'EMAIL_FROM'
+> {
+  /** Cloudflare Email Service binding — production only (wrangler.jsonc env.production). */
+  EMAIL?: SendEmail;
   /** Local only (wrangler.jsonc top-level vars / .dev.vars). The Worker refuses to serve if set
    *  when ENVIRONMENT !== "local". */
   DEV_AUTH?: string;
