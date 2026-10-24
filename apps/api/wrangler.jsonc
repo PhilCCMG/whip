@@ -25,7 +25,9 @@
     "directory": "../web/dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
+    // /download + /download/* are Worker routes (desktop installer redirect, latest.json); without
+    // them here the SPA fallback would swallow them.
+    "run_worker_first": ["/api/*", "/download", "/download/*"]
   },
 
   // Local only: DEV_AUTH enables the X-Whip-Dev-User header (refused outside ENVIRONMENT=local).
@@ -40,7 +42,11 @@
       "migrations_dir": "migrations"
     }
   ],
-  "r2_buckets": [{ "binding": "SAVES", "bucket_name": "whip-saves-local" }],
+  // RELEASES: desktop installers + updater manifests (docs/architecture/08-desktop.md §4).
+  "r2_buckets": [
+    { "binding": "SAVES", "bucket_name": "whip-saves-local" },
+    { "binding": "RELEASES", "bucket_name": "whip-releases-local" }
+  ],
   "durable_objects": {
     "bindings": [{ "name": "CAMPAIGN", "class_name": "CampaignDO" }]
   },
@@ -63,6 +69,10 @@
           "migrations_dir": "migrations"
         }
       ],
+      // No RELEASES binding on staging: binding a bucket that doesn't exist fails `wrangler deploy`,
+      // and staging auto-deploys from main. Without it the desktop routes answer 204/404. To give
+      // staging its own channel: `wrangler r2 bucket create whip-releases-staging`, then add
+      // { "binding": "RELEASES", "bucket_name": "whip-releases-staging" } here.
       "r2_buckets": [{ "binding": "SAVES", "bucket_name": "whip-saves-staging" }],
       "durable_objects": {
         "bindings": [{ "name": "CAMPAIGN", "class_name": "CampaignDO" }]
@@ -86,7 +96,10 @@
           "migrations_dir": "migrations"
         }
       ],
-      "r2_buckets": [{ "binding": "SAVES", "bucket_name": "whip-saves" }],
+      "r2_buckets": [
+        { "binding": "SAVES", "bucket_name": "whip-saves" },
+        { "binding": "RELEASES", "bucket_name": "whip-releases" }
+      ],
       "durable_objects": {
         "bindings": [{ "name": "CAMPAIGN", "class_name": "CampaignDO" }]
       },

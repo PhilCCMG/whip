@@ -20,7 +20,9 @@ export function createQueryClient(): QueryClient {
       mutations: { retry: false },
     },
     mutationCache: new MutationCache({
-      onError: (error) => {
+      onError: (error, _vars, _ctx, mutation) => {
+        // Mutations that render their own errors (sign-in) opt out of toasts.
+        if (mutation.meta?.inlineErrors) return;
         if (error instanceof ApiError && error.code === 'REVISION_CONFLICT') {
           toast({
             id: 'revision-conflict',

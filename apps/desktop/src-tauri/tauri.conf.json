@@ -1,0 +1,87 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "WHIP",
+  "mainBinaryName": "WHIP",
+  "version": "0.1.0",
+  "identifier": "com.cheatcodemedia.whip",
+  "build": {
+    "beforeDevCommand": "pnpm --filter @whip/desktop dev:web",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "pnpm --filter @whip/desktop build:web",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "WHIP",
+        "width": 1600,
+        "height": 900,
+        "minWidth": 1280,
+        "minHeight": 720,
+        "center": true,
+        "maximized": true,
+        "visible": false,
+        "resizable": true,
+        "fullscreen": false,
+        "backgroundColor": "#0F1D1C",
+        "zoomHotkeysEnabled": false,
+        "dragDropEnabled": false,
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required"
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: blob:",
+        "font-src": "'self' data:",
+        "connect-src": "'self' ipc: http://ipc.localhost https://playwhip.com https://*.workers.dev http://localhost:8787 http://127.0.0.1:8787"
+      },
+      "devCsp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "app", "dmg", "appimage", "deb"],
+    "createUpdaterArtifacts": true,
+    "publisher": "CheatCode Media",
+    "copyright": "© 2026 CheatCode Media",
+    "category": "StrategyGame",
+    "shortDescription": "A UK political career strategy game",
+    "longDescription": "WHIP: play a backbench MP and work your way up (or out) through diaries, divisions, factions, scandals and leadership contests. Requires an internet connection; careers are saved to your playwhip.com account.",
+    "homepage": "https://playwhip.com",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true },
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico"
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    },
+    "linux": {
+      "deb": { "section": "games" }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQwODA1NUQ5NDZGQzhFMkQKUldRdGp2eEcyVldBMFBHVnJVczlyYlRlcktiek9CeUhOQzVQZFRYWWxxbFplTC92ckw0VWw5bU8K",
+      "endpoints": [
+        "https://playwhip.com/api/v1/desktop/update/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "windows": { "installMode": "passive" }
+    }
+  }
+}

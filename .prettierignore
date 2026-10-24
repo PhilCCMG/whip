@@ -6,3 +6,5 @@ pnpm-lock.yaml
 apps/api/migrations/meta
 apps/api/worker-configuration.d.ts
 docs
+apps/desktop/src-tauri/target
+apps/desktop/src-tauri/gen

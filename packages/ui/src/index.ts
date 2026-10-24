@@ -40,3 +40,5 @@ export { PartyChip, type PartyChipProps } from './components/party-chip';
 export { Headline, type HeadlineProps } from './components/headline';
 export { VoteBar, type VoteBarProps } from './components/vote-bar';
 export { WhipIcon, WhipWordmark } from './components/brand';
+export { Keycap, type KeycapProps } from './components/keycap';
+export { ReturnKeyIcon } from './components/key-glyphs';

@@ -19,6 +19,7 @@ covers the one-off resources and secrets behind it.
 | `ENVIRONMENT`                  | `local`                                          | `staging`                             | `production`                                 |
 | D1 (`DB`)                      | `whip-core-local` (local SQLite, `.wrangler/`)   | `whip-core-staging`                   | `whip-core`                                  |
 | R2 (`SAVES`)                   | `whip-saves-local` (local)                       | `whip-saves-staging`                  | `whip-saves`                                 |
+| R2 (`RELEASES`, desktop)       | `whip-releases-local` (local)                    | — (not bound)                         | `whip-releases` (created 2026-10-25)         |
 | DO (`CAMPAIGN` → `CampaignDO`) | local                                            | separate namespace                    | separate namespace                           |
 | Auth                           | Dev identity header (`DEV_AUTH=1`) + Better Auth | Better Auth, behind Cloudflare Access | Better Auth (public)                         |
 | Deploy                         | —                                                | Auto on `main` (GitHub Actions)       | Manual, gated by GitHub environment approval |
@@ -36,6 +37,7 @@ npx wrangler d1 create whip-core
 # R2
 npx wrangler r2 bucket create whip-saves-staging
 npx wrangler r2 bucket create whip-saves
+npx wrangler r2 bucket create whip-releases   # desktop installers/updates (done 2026-10-25)
 
 # Schema
 npx wrangler d1 migrations apply whip-core-staging --remote --env staging
@@ -77,10 +79,52 @@ npx wrangler secret put RESEND_API_KEY --env staging
 `BETTER_AUTH_SECRET` is mandatory outside local: without it every auth call throws. The built-in
 dev secret is only used when `ENVIRONMENT=local` **and** the request host is loopback.
 
-GitHub Actions secrets (repository or per-environment): `CLOUDFLARE_API_TOKEN` (needs the
-permissions Workers Scripts:Edit, D1:Edit, Workers R2 Storage:Edit and Account Settings:Read) and
-`CLOUDFLARE_ACCOUNT_ID`. Create GitHub environments `staging` and `production`, and add required
-reviewers to `production`.
+### GitHub Actions secrets — owner steps
+
+Used by `deploy.yml` (Worker deploy + D1 migrations), `desktop-release.yml` (R2 upload) and
+`desktop-promote.yml` (R2 channel write). As of 2026-10-25 only `TAURI_SIGNING_PRIVATE_KEY` and
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` exist. Add them as **repository** secrets: the release
+workflow's upload job has no GitHub environment, and repository secrets are also visible to the
+`staging`/`production` environment jobs.
+
+1. Cloudflare dashboard (account **CheatCode Media Group**) → _My Profile → API Tokens → Create
+   Token → Custom token_:
+   - Name: `whip-github-actions`
+   - Permissions (all **Account**-level): **Workers Scripts: Edit**, **D1: Edit**,
+     **Workers R2 Storage: Edit**, **Account Settings: Read**. If deploys need to manage the
+     `playwhip.com` custom domain, add **Zone › Workers Routes: Edit** for that zone.
+   - Account resources: _Include → CheatCode Media Group_. Optionally restrict client IPs/TTL.
+   - Create, copy the token (shown once).
+2. Add the repository secrets (or _Settings → Secrets and variables → Actions_):
+
+   ```sh
+   gh secret set CLOUDFLARE_API_TOKEN --repo PhilCCMG/whip          # paste the token
+   gh secret set CLOUDFLARE_ACCOUNT_ID --repo PhilCCMG/whip --body 660a68b9eb6593c8ab0fefff75044d89
+   ```
+
+3. _Settings → Environments_: create `staging` and `production`; on `production` add yourself as
+   a **required reviewer** (gates production deploys and desktop promotes).
+4. Optional: repository variable `DESKTOP_TAG_PLATFORMS` = `windows` | `windows+linux` | `all`
+   (default `all`) to choose what a `desktop-v*` tag builds — macOS minutes bill at 10× on a
+   private repo (docs/architecture/08-desktop.md §4).
+
+Check with `gh secret list --repo PhilCCMG/whip`.
+
+## Desktop releases (R2 `whip-releases`)
+
+Layout, routes and the release → promote flow are in docs/architecture/08-desktop.md §4. In short:
+`desktop/releases/{version}/…` + `manifest.json` (immutable, uploaded by `desktop-release.yml` or
+`pnpm desktop:release:local`), and `desktop/channels/stable.json` (written only by
+`desktop-promote.yml` / `pnpm desktop:release promote`). A release is live only while the channel
+points at it. Inspect by hand:
+
+```sh
+cd apps/api
+npx wrangler r2 object get whip-releases/desktop/channels/stable.json --pipe --remote
+```
+
+Staging has no `RELEASES` binding (a binding to a missing bucket fails deploy). To add one, create
+`whip-releases-staging` and add the binding to `env.staging` in wrangler.jsonc.
 
 ## Cloudflare Access for staging
 

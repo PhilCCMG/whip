@@ -18,6 +18,7 @@ Read [`docs/architecture/01-overview.md`](docs/architecture/01-overview.md) firs
 ```text
 apps/web            React 19 · Vite · Tailwind v4 · React Router · TanStack Query · Zustand
 apps/api            Worker: Hono, CampaignDO, D1 schema + migrations (Drizzle), wrangler.jsonc
+apps/desktop        Tauri v2 desktop client: bundled SPA + cloud API (docs/architecture/08-desktop.md)
 packages/domain     Entity types, ID brands, Zod state schemas            (imports: nothing internal)
 packages/simulation Pure deterministic engine                             (imports: domain)
 packages/content    Scenario/trait/office/event definitions               (imports: domain)
@@ -97,16 +98,36 @@ the report. The Housing Delivery Bill's Second Reading division is resolved when
 | `pnpm deploy:staging` / `:production` | Build the SPA, then `wrangler deploy --env staging` / `--env production` (never a bare deploy)                                 |
 | `pnpm cf-typegen`                     | Regenerate `apps/api/worker-configuration.d.ts` after changing bindings                                                        |
 
+## Desktop (Tauri)
+
+WHIP also ships as a desktop game (`apps/desktop`): a Tauri v2 window running the bundled SPA
+against the cloud API (`https://playwhip.com`), with bearer-token sessions in the OS credential
+store, fullscreen (F11 / Alt+Enter) and signed auto-updates. See
+[`docs/architecture/08-desktop.md`](docs/architecture/08-desktop.md) and ADR-0011.
+
+Extra prerequisites: Rust (stable, via rustup), plus per OS: Windows needs WebView2 and the VS C++
+build tools, macOS needs Xcode CLT, and Linux needs `libwebkit2gtk-4.1-dev libappindicator3-dev
+librsvg2-dev patchelf`.
+
+| Command                                                    | What it does                                                                     |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `pnpm --filter @whip/desktop dev`                          | `tauri dev` against local `wrangler dev` (run `pnpm dev` first)                  |
+| `pnpm --filter @whip/desktop tauri build --bundles nsis`   | Release build + NSIS installer (needs the updater signing env vars, see 08 §3)   |
+| `pnpm --filter @whip/desktop tauri build --debug`          | Bundled SPA against `VITE_API_BASE` (production by default), devtools enabled    |
+| `pnpm --filter @whip/desktop version:bump <x.y.z>`         | Sync the desktop version (tauri.conf.json, package.json, Cargo.toml)             |
+| `git tag desktop-vX.Y.Z && git push origin desktop-vX.Y.Z` | Build all platforms in CI → draft GitHub Release (publish it to ship the update) |
+
 ## Environment variables
 
 Configured in `apps/api/wrangler.jsonc` (`vars`) or as secrets. Locally, put them in `apps/api/.dev.vars`.
 
-| Name                                        | Where            | Purpose                                          |
-| ------------------------------------------- | ---------------- | ------------------------------------------------ |
-| `ENVIRONMENT`                               | `vars`           | `local` / `staging` / `production`               |
-| `DEV_AUTH`                                  | `.dev.vars` only | `1` enables the dev identity header (local only) |
-| `BETTER_AUTH_SECRET`                        | secret           | Session signing secret for Better Auth           |
-| `RESEND_API_KEY` (or Email Service binding) | secret           | Sign-in code delivery (not needed locally)       |
+| Name                                        | Where             | Purpose                                                       |
+| ------------------------------------------- | ----------------- | ------------------------------------------------------------- |
+| `ENVIRONMENT`                               | `vars`            | `local` / `staging` / `production`                            |
+| `DEV_AUTH`                                  | `.dev.vars` only  | `1` enables the dev identity header (local only)              |
+| `BETTER_AUTH_SECRET`                        | secret            | Session signing secret for Better Auth                        |
+| `RESEND_API_KEY` (or Email Service binding) | secret            | Sign-in code delivery (not needed locally)                    |
+| `MIN_DESKTOP_VERSION`                       | `vars` (optional) | Oldest supported desktop client, reported by `/api/v1/health` |
 
 > **Never run a bare `wrangler deploy`.** The top level of `wrangler.jsonc` is the local-only
 > config (`whip-local`, `whip-core-local`, `DEV_AUTH=1`, `workers_dev: false`); always pass

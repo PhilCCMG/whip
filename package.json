@@ -23,7 +23,9 @@
     "deploy:staging": "pnpm --filter @whip/web run build && pnpm --filter @whip/api run deploy:staging",
     "deploy:production": "pnpm --filter @whip/web run build && pnpm --filter @whip/api run deploy:production",
     "db:generate": "pnpm --filter @whip/api run db:generate",
-    "cf-typegen": "pnpm --filter @whip/api run cf-typegen"
+    "cf-typegen": "pnpm --filter @whip/api run cf-typegen",
+    "desktop:release": "node scripts/desktop-release.mjs",
+    "desktop:release:local": "node scripts/desktop-release.mjs local"
   },
   "devDependencies": {
     "@whip/config": "workspace:*",

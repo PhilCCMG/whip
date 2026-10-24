@@ -27,6 +27,8 @@ export interface Env extends Omit<
   /** Secret: Resend API key for sign-in emails (staging/production). */
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
+  /** Optional var: oldest supported desktop client (`x.y.z`), reported by /api/v1/health. */
+  MIN_DESKTOP_VERSION?: string;
 }
 
 export interface AppVariables {

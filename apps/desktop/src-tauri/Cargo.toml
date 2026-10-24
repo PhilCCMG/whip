@@ -1,0 +1,37 @@
+[package]
+name = "whip-desktop"
+# The app version lives in tauri.conf.json (synced by `pnpm --filter @whip/desktop version:bump`).
+version = "0.1.0"
+description = "WHIP — UK political career strategy game (desktop client)"
+authors = ["CheatCode Media"]
+license = "UNLICENSED"
+repository = "https://github.com/PhilCCMG/whip"
+edition = "2021"
+rust-version = "1.90"
+publish = false
+
+[lib]
+# `_lib` suffix avoids a Windows name clash between the lib and bin artifacts (Tauri template).
+name = "whip_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+tauri-plugin-window-state = "2"
+tauri-plugin-single-instance = "2"
+# OS credential store: Windows Credential Manager, macOS Keychain, Linux Secret Service (zbus, pure Rust).
+keyring = "4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

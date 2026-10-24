@@ -18,19 +18,54 @@
   }
 }
 
-/* Respect reduced motion everywhere, including Radix and toast transitions. */
+/*
+ * Respect reduced motion everywhere, including Radix and toast transitions. The in-game setting
+ * (html[data-motion]) overrides the OS preference in either direction.
+ */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  ::before,
-  ::after {
+  :root:not([data-motion='full']) *,
+  :root:not([data-motion='full']) ::before,
+  :root:not([data-motion='full']) ::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
 }
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] ::before,
+:root[data-motion='reduced'] ::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
 
 @utility scrollbar-thin {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in oklab, currentColor 25%, transparent) transparent;
+}
+
+/* Main menu: the backdrop's slow Ken Burns drift, the title prompt's breathe and the news crawl. */
+@keyframes whip-drift {
+  from {
+    scale: 1.02;
+  }
+  to {
+    scale: 1.07;
+    translate: -1% 0.5%;
+  }
+}
+@keyframes whip-breathe {
+  from {
+    opacity: 0.6;
+  }
+  to {
+    opacity: 0.9;
+  }
+}
+@keyframes whip-crawl {
+  to {
+    translate: -50% 0;
+  }
 }

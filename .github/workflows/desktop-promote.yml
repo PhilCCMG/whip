@@ -1,0 +1,54 @@
+name: Desktop promote
+
+# Makes an uploaded desktop release live by pointing desktop/channels/{channel}.json at it
+# (docs/architecture/08-desktop.md §4). Gated by the `production` environment's required reviewers.
+#
+# Rollback = promote an older version. That stops new installs/updates getting the bad version
+# within ~60 s, but Tauri never DOWNGRADES clients already on it: ship the fix as a newer version.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to make live (x.y.z, already uploaded by Desktop release)
+        type: string
+        required: true
+      channel:
+        description: Release channel
+        type: choice
+        options: [stable]
+        default: stable
+
+concurrency:
+  group: desktop-promote-${{ inputs.channel }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile # wrangler (apps/api)
+
+      # Verifies the manifest in R2 and that the production Worker serves every file it names,
+      # then writes the channel pointer.
+      - name: Promote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          VERSION: ${{ inputs.version }}
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          node scripts/desktop-release.mjs promote --version "$VERSION" --channel "$CHANNEL" \
+            --verify-base https://playwhip.com
+          echo "### WHIP desktop v$VERSION is live on \`$CHANNEL\`" >> "$GITHUB_STEP_SUMMARY"

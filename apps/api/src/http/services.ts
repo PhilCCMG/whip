@@ -1,5 +1,6 @@
 import type { Context } from 'hono';
 import { CampaignUseCases } from '../application/campaigns';
+import type { ReleaseStore } from '../application/desktop-releases';
 import { CampaignMaintenance } from '../application/maintenance';
 import { engineVersion } from '../composition';
 import type { AppEnv, Env } from '../env';
@@ -8,6 +9,7 @@ import { D1CampaignIndex } from '../infrastructure/db/d1-campaign-index';
 import { durableObjectCampaignGateway } from '../infrastructure/do/campaign-do-gateway';
 import { logger } from '../infrastructure/logging/logger';
 import { randomIds, sha256Hex, systemClock } from '../infrastructure/platform';
+import { R2ReleaseStore } from '../infrastructure/releases/r2-release-store';
 
 /** Per-request composition of the Worker-side application services. */
 export function campaignUseCases(c: Context<AppEnv>): CampaignUseCases {
@@ -33,4 +35,11 @@ export function campaignMaintenance(env: Pick<Env, 'DB' | 'CAMPAIGN'>): Campaign
     clock: systemClock,
     log: { warn: (msg, fields) => logger.warn(msg, { source: 'cron', ...fields }) },
   });
+}
+
+/** Desktop release bucket reader (GET /api/v1/desktop/*, /download). */
+export function releaseStore(c: Context<AppEnv>): ReleaseStore {
+  return new R2ReleaseStore(c.env.RELEASES, (msg, fields) =>
+    logger.error(msg, { requestId: c.get('requestId'), ...fields }),
+  );
 }

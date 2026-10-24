@@ -15,7 +15,8 @@ export function authFor(c: Context<AppEnv>) {
   });
 }
 
-/** Better Auth cookie session → user. */
+/** Better Auth session → user: the session cookie (browser) or `Authorization: Bearer` (desktop,
+ *  via the bearer plugin). */
 export const betterAuthSession: SessionResolver = async (c) => {
   const session = await authFor(c).api.getSession({ headers: c.req.raw.headers });
   if (!session) return null;

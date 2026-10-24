@@ -1,5 +1,7 @@
 import { IDEMPOTENCY_HEADER } from '@whip/contracts';
 import type { z } from 'zod';
+import { signalSessionExpired } from '../platform/events';
+import type { Platform } from '../platform/types';
 import { ApiError, errorFromResponse } from './errors';
 
 export type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -14,7 +16,19 @@ export interface ApiClientOptions {
   maxRetries?: number;
   retryDelayMs?: (attempt: number) => number;
   newIdempotencyKey?: () => string;
+  /**
+   * Platform session transport (src/platform): fetch credentials + auth headers per request.
+   * Web: cookies (`include`), no headers. Desktop: `Authorization: Bearer`, no cookies; a 401
+   * with a stored token clears it (stale or revoked session → signed out).
+   * Omitted (tests): `credentials: 'include'`.
+   */
+  platform?: () => Promise<ClientPlatform>;
 }
+
+export type ClientPlatform = Pick<
+  Platform,
+  'fetchCredentials' | 'getAuthHeaders' | 'hasSessionToken' | 'clearSessionToken'
+>;
 
 type Query = Record<string, string | number | boolean | undefined | null>;
 
@@ -68,8 +82,20 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
   async function send(url: string, init: RequestInit): Promise<Response> {
     const doFetch = await options.fetch();
+    const platform = options.platform ? await options.platform() : null;
+    const headers = new Headers(init.headers);
+    for (const [k, v] of Object.entries(platform?.getAuthHeaders() ?? {})) headers.set(k, v);
     try {
-      return await doFetch(url, { credentials: 'include', ...init });
+      const res = await doFetch(url, {
+        credentials: platform?.fetchCredentials ?? 'include',
+        ...init,
+        headers,
+      });
+      if (res.status === 401 && platform?.hasSessionToken()) {
+        await platform.clearSessionToken();
+        signalSessionExpired();
+      }
+      return res;
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') throw e;
       throw new ApiError({

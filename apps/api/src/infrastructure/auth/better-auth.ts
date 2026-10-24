@@ -1,7 +1,9 @@
 import { betterAuth } from 'better-auth';
+import { bearer } from 'better-auth/plugins/bearer';
 import { emailOTP } from 'better-auth/plugins/email-otp';
 import type { Env } from '../../env';
 import type { EmailSender } from './email-sender';
+import { crossOriginAllowlist } from './trusted-origins';
 
 const LOCAL_DEV_SECRET = 'whip-local-dev-secret-not-for-production-0000';
 
@@ -42,7 +44,10 @@ export const AUTH_RATE_LIMIT_RULES = {
 
 /**
  * Better Auth 1.7.12 on D1 (native Kysely D1 dialect), email one-time code sign-in, DB-backed
- * cookie sessions. Created per request because bindings are per request on Workers.
+ * sessions. Browsers use the session cookie; the desktop client uses the same session as a
+ * bearer token (`bearer` plugin: responses that set the session cookie also carry
+ * `set-auth-token`, and `Authorization: Bearer <token>` is turned back into the session cookie
+ * before Better Auth reads it). Created per request because bindings are per request on Workers.
  */
 export function createAuth(env: Env, opts: { baseURL: string; sender: EmailSender }) {
   const secret = resolveAuthSecret(env, opts.baseURL);
@@ -58,7 +63,9 @@ export function createAuth(env: Env, opts: { baseURL: string; sender: EmailSende
     basePath: '/api/auth',
     secret,
     database: env.DB,
-    trustedOrigins: [origin, ...extraOrigins],
+    // The desktop client's Tauri origins (+ local dev servers, locally only) must pass Better
+    // Auth's origin/CSRF checks on sign-in (ADR-0011).
+    trustedOrigins: [origin, ...crossOriginAllowlist(env), ...extraOrigins],
     telemetry: { enabled: false },
     session: { expiresIn: 60 * 60 * 24 * 30, updateAge: 60 * 60 * 24 },
     // Better Auth only enables this by default when NODE_ENV=production (unset on Workers), and
@@ -79,6 +86,9 @@ export function createAuth(env: Env, opts: { baseURL: string; sender: EmailSende
       ipAddress: { ipAddressHeaders: ['cf-connecting-ip'] },
     },
     plugins: [
+      // Signed tokens only: the bearer token is the signed session-cookie value from
+      // `set-auth-token`, so a raw session id from the DB is never accepted on its own.
+      bearer({ requireSignature: true }),
       emailOTP({
         otpLength: 6,
         expiresIn: 600,

@@ -1,0 +1,20 @@
+{
+  "name": "@whip/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "WHIP desktop client (Tauri v2) — bundled SPA, cloud API. See docs/architecture/08-desktop.md.",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "build:web": "pnpm --filter @whip/web exec vite build --mode desktop --outDir ../desktop/dist",
+    "dev:web": "pnpm --filter @whip/web exec vite --mode desktop-dev --port 5173 --strictPort",
+    "icons": "tauri icon ../../docs/brand/Whip-Icon.svg",
+    "version:bump": "node scripts/version.mjs bump",
+    "version:check": "node scripts/version.mjs check"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.4"
+  }
+}

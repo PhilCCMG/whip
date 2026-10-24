@@ -17,6 +17,19 @@ beforeAll(() => {
   if (!('scrollIntoView' in Element.prototype)) {
     Object.defineProperty(Element.prototype, 'scrollIntoView', { value: () => {} });
   }
+  // jsdom has no media playback: resolve play() quietly so the menu music can run in tests.
+  Object.defineProperty(HTMLMediaElement.prototype, 'play', {
+    configurable: true,
+    value: () => Promise.resolve(),
+  });
+  Object.defineProperty(HTMLMediaElement.prototype, 'pause', {
+    configurable: true,
+    value: () => {},
+  });
+  Object.defineProperty(HTMLMediaElement.prototype, 'load', {
+    configurable: true,
+    value: () => {},
+  });
   if (!('hasPointerCapture' in Element.prototype)) {
     Object.defineProperty(Element.prototype, 'hasPointerCapture', { value: () => false });
   }

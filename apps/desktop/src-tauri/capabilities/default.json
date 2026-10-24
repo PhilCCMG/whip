@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The WHIP main window: app info, fullscreen, quit/relaunch and signed updates. App commands (session token, toggle_fullscreen) are allowed by default.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-is-fullscreen",
+    "updater:default",
+    "process:allow-exit",
+    "process:allow-restart"
+  ]
+}

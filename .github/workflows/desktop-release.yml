@@ -1,0 +1,189 @@
+name: Desktop release
+
+# Builds signed WHIP desktop installers + updater bundles and uploads them to the R2 bucket
+# `whip-releases` under desktop/releases/{version}/ with a manifest.json
+# (docs/architecture/08-desktop.md §4). The release lands UNPUBLISHED: players only get it once
+# .github/workflows/desktop-promote.yml points the channel at it.
+#
+#   pnpm --filter @whip/desktop version:bump 0.2.0   # then commit
+#   git tag desktop-v0.2.0 && git push origin desktop-v0.2.0
+#
+# Cost (private repo): Linux runners bill 1×, Windows 2×, macOS 10× per minute. A tag builds the
+# platforms in the repo variable DESKTOP_TAG_PLATFORMS (default "all"); a manual run builds the
+# chosen set (default Windows only).
+
+on:
+  push:
+    tags: ['desktop-v*']
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: Platforms to build (macOS bills at 10× on a private repo)
+        type: choice
+        options: [windows, windows+linux, all]
+        default: windows
+      notes:
+        description: Release notes shown in the update prompt (optional)
+        type: string
+        default: ''
+
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      version: ${{ steps.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_PLATFORMS: ${{ inputs.platforms }}
+          TAG_PLATFORMS: ${{ vars.DESKTOP_TAG_PLATFORMS }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "push" ]; then choice="${TAG_PLATFORMS:-all}"; else choice="${INPUT_PLATFORMS:-windows}"; fi
+          case "$choice" in
+            windows) wanted='["windows"]' ;;
+            windows+linux) wanted='["windows","linux"]' ;;
+            all) wanted='["windows","macos","linux"]' ;;
+            *) echo "::error::unknown platforms '$choice'"; exit 1 ;;
+          esac
+          matrix=$(jq -cn --argjson wanted "$wanted" '{include: [
+            {platform: "windows", name: "Windows x64 (NSIS)", os: "windows-latest", args: "--bundles nsis"},
+            {platform: "macos", name: "macOS universal (dmg)", os: "macos-latest", args: "--target universal-apple-darwin --bundles app,dmg"},
+            {platform: "linux", name: "Linux x64 (AppImage, deb)", os: "ubuntu-22.04", args: "--bundles appimage,deb"}
+          ] | map(select(.platform as $p | $wanted | index($p)))}')
+          version=$(jq -r .version apps/desktop/src-tauri/tauri.conf.json)
+          echo "Building $choice → $matrix (version $version)"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: ${{ matrix.name }}
+    needs: plan
+    strategy:
+      fail-fast: true
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ runner.os == 'macOS' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Version matches the tag
+        if: startsWith(github.ref, 'refs/tags/desktop-v')
+        env:
+          TAG: ${{ github.ref_name }}
+        run: pnpm --filter @whip/desktop version:check "$TAG"
+
+      # beforeBuildCommand (tauri.conf.json) builds the SPA in `desktop` mode into apps/desktop/dist.
+      # createUpdaterArtifacts signs the updater bundles (.sig) with the minisign key.
+      - name: Build + sign
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_ARGS: ${{ matrix.args }}
+        run: |
+          # shellcheck disable=SC2086 # TAURI_ARGS is a list of flags
+          pnpm --filter @whip/desktop tauri build $TAURI_ARGS
+
+      - name: Collect artifacts
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/desktop-out"
+          mkdir -p "$out"
+          target=apps/desktop/src-tauri/target
+          case "$PLATFORM" in
+            windows)
+              cp "$target"/release/bundle/nsis/WHIP_"$VERSION"_x64-setup.exe{,.sig} "$out"/ ;;
+            macos)
+              b="$target/universal-apple-darwin/release/bundle"
+              cp "$b"/dmg/*.dmg "$out"/
+              # WHIP.app.tar.gz carries no version/arch; the .sig covers content, not the name.
+              cp "$b/macos/WHIP.app.tar.gz" "$out/WHIP_${VERSION}_universal.app.tar.gz"
+              cp "$b/macos/WHIP.app.tar.gz.sig" "$out/WHIP_${VERSION}_universal.app.tar.gz.sig" ;;
+            linux)
+              b="$target/release/bundle"
+              cp "$b"/appimage/*.AppImage{,.sig} "$out"/
+              cp "$b"/deb/*.deb "$out"/ ;;
+          esac
+          ls -la "$out"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}
+          path: ${{ runner.temp }}/desktop-out/
+          if-no-files-found: error
+          retention-days: 14
+
+  upload:
+    name: Upload to R2 (unpublished)
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile # wrangler (apps/api)
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/desktop-dist
+
+      - name: Upload release + manifest
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          NOTES: ${{ inputs.notes }}
+          DIST: ${{ runner.temp }}/desktop-dist
+        run: |
+          set -euo pipefail
+          node scripts/desktop-release.mjs publish --dir "$DIST" --version "$VERSION" \
+            --notes "${NOTES:-WHIP desktop v$VERSION.}"
+          {
+            echo "### WHIP desktop v$VERSION uploaded (not live)"
+            echo
+            echo "Go live: **Actions → Desktop promote** with version \`$VERSION\`."
+          } >> "$GITHUB_STEP_SUMMARY"

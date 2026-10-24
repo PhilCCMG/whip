@@ -5,3 +5,4 @@
 export * from './errors';
 export * from './health';
 export * from './dto';
+export * from './desktop';

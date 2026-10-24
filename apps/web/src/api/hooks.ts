@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-query';
 import type { CreateCampaignRequest } from '@whip/contracts';
 import { useUiStore } from '../stores/ui-store';
+import { sendSignInCode, signInWithCode, signOut } from './auth';
 import { endpoints } from './endpoints';
 import { isApiError } from './errors';
 import { api } from './runtime';
@@ -24,6 +25,7 @@ export const ep = endpoints(api);
 
 /** Query keys. Everything scoped to a campaign starts with ['campaign', id]. */
 export const keys = {
+  me: ['me'] as const,
   campaigns: ['campaigns'] as const,
   campaign: (id: string) => ['campaign', id] as const,
   summary: (id: string) => ['campaign', id, 'summary'] as const,
@@ -48,6 +50,44 @@ export const stateQuery = (id: string) =>
   queryOptions({ queryKey: keys.state(id), queryFn: ({ signal }) => ep.getState(id, signal) });
 
 export const useCampaigns = () => useQuery(campaignsQuery());
+
+/** The signed-in player. A 401 (UNAUTHENTICATED) means there is no session. */
+export const useMe = () =>
+  useQuery({ queryKey: keys.me, queryFn: ({ signal }) => ep.me(signal), staleTime: 5 * 60_000 });
+
+export const isSignedOutError = (e: unknown) =>
+  isApiError(e, 'UNAUTHENTICATED') || (isApiError(e) && e.status === 401);
+
+export const useSendSignInCode = () =>
+  useMutation({
+    mutationFn: (email: string) => sendSignInCode(email),
+    meta: { inlineErrors: true },
+  });
+
+export function useSignIn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ email, otp }: { email: string; otp: string }) => signInWithCode(email, otp),
+    meta: { inlineErrors: true },
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: keys.me }),
+        qc.invalidateQueries({ queryKey: keys.campaigns }),
+      ]),
+  });
+}
+
+export function useSignOut() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => signOut(),
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: ['campaign'] });
+      qc.removeQueries({ queryKey: keys.campaigns });
+      return qc.invalidateQueries({ queryKey: keys.me });
+    },
+  });
+}
 export const useCampaignState = (id: string) => useQuery(stateQuery(id));
 
 export const useCatalogue = (id: string, enabled = true) =>

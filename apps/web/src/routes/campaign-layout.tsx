@@ -13,6 +13,7 @@ import {
   WhipWordmark,
 } from '@whip/ui';
 import { Flag, Inbox, Landmark, Newspaper, ScrollText, Users } from 'lucide-react';
+import { useRef } from 'react';
 import { Link, NavLink, Outlet } from 'react-router';
 import { useAdvance, useCampaignState, useTurnReport } from '../api/hooks';
 import { isMockMode } from '../api/runtime';
@@ -20,6 +21,7 @@ import type { CareerOverview } from '../api/types';
 import { ActionPlanner } from '../components/action-planner';
 import { ContextPanelContent } from '../components/context-panel';
 import { ErrorState, Loading } from '../components/states';
+import { useClickSounds } from '../features/audio/use-ui-sound';
 import { TurnReportDialog } from '../components/turn-report';
 import { formatShortDate, formatSimDate, plural, signed } from '../lib/format';
 import { campaignPath, useCampaignId } from '../lib/params';
@@ -34,15 +36,19 @@ const NAV = [
 ] as const;
 
 function NavRail({ campaignId }: { campaignId: string }) {
+  const ref = useRef<HTMLElement>(null);
+  useClickSounds(ref);
   return (
     <nav
+      ref={ref}
       aria-label="Main"
       className="sticky top-0 hidden h-dvh w-[76px] shrink-0 flex-col border-r border-white/10 bg-ink lg:flex"
     >
       <Link
         to="/"
+        state={{ skipTitle: true }}
         className="flex h-14 items-center justify-center border-b-[3px] border-whip focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-        aria-label="WHIP: all careers"
+        aria-label="WHIP: main menu"
       >
         <WhipIcon className="size-9" />
       </Link>
@@ -72,8 +78,11 @@ function NavRail({ campaignId }: { campaignId: string }) {
 }
 
 function BottomTabs({ campaignId }: { campaignId: string }) {
+  const ref = useRef<HTMLElement>(null);
+  useClickSounds(ref);
   return (
     <nav
+      ref={ref}
       aria-label="Main"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-ink pb-[env(safe-area-inset-bottom)] lg:hidden"
     >
@@ -139,7 +148,12 @@ function TopBar({ overview }: { overview: CareerOverview | undefined }) {
   return (
     <header className="sticky top-0 z-30 border-b border-white/10 bg-ink text-paper">
       <div className="flex h-14 items-center gap-3 px-4 lg:px-5">
-        <Link to="/" className="shrink-0 text-paper lg:hidden" aria-label="WHIP: all careers">
+        <Link
+          to="/"
+          state={{ skipTitle: true }}
+          className="shrink-0 text-paper lg:hidden"
+          aria-label="WHIP: main menu"
+        >
           <WhipWordmark className="h-5 w-auto" />
         </Link>
         <div className="min-w-0 flex-1">

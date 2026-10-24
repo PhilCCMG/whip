@@ -15,3 +15,4 @@ Format and rules: see [ADR-0000](0000-record-architecture-decisions.md).
 | 0008 | [Deterministic simulation](0008-deterministic-simulation.md) | Accepted |
 | 0009 | [Effects as data and a fixed phase pipeline](0009-effects-as-data-and-phase-pipeline.md) | Accepted |
 | 0010 | [Utility AI and fidelity tiers](0010-utility-ai-and-fidelity-tiers.md) | Accepted |
+| 0011 | [Desktop client with Tauri v2 (bundled SPA, cloud API, bearer sessions)](0011-desktop-tauri.md) | Proposed |

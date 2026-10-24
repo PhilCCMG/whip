@@ -1,3 +1,4 @@
+import { apiBase, getPlatform } from '../platform';
 import { createApiClient, type FetchLike } from './client';
 
 /**
@@ -15,7 +16,8 @@ export function setApiFetch(fetchImpl: FetchLike | null): void {
   override = fetchImpl;
 }
 
-function resolveFetch(): FetchLike | Promise<FetchLike> {
+/** The fetch the API client uses (test override, mock backend, or the network). */
+export function resolveFetch(): FetchLike | Promise<FetchLike> {
   if (override) return override;
   if (isMockMode) {
     mockFetch ??= import('../mocks').then((m) => m.mockBackend.fetch);
@@ -26,5 +28,8 @@ function resolveFetch(): FetchLike | Promise<FetchLike> {
 
 export const api = createApiClient({
   fetch: resolveFetch,
+  // `''` (same origin) on the web; https://playwhip.com (VITE_API_BASE) on desktop.
+  baseUrl: `${apiBase}/api/v1`,
+  platform: getPlatform,
   devUser: import.meta.env.VITE_DEV_USER,
 });

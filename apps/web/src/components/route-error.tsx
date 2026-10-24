@@ -22,7 +22,7 @@ export function RouteError({ notFound = false }: { notFound?: boolean }) {
               : 'An unexpected error stopped this screen from loading.'}
         </p>
         <Button asChild variant="whip" className="mt-5">
-          <Link to="/">Back to your careers</Link>
+          <Link to="/">Main menu</Link>
         </Button>
       </div>
     </main>
