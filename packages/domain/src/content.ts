@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  NEWSPAPER_SECTION_KEYS,
+  type FillerSectionKey,
+  type NewspaperSectionKey,
+} from './chronicle';
 import { EventDefinitionSchema, type EventDefinition } from './events';
 import {
   BillIdSchema,
@@ -249,37 +254,156 @@ export const HISTORY_TEMPLATE_KEYS = [
 ] as const;
 export type HistoryTemplateKey = (typeof HISTORY_TEMPLATE_KEYS)[number];
 
-export const HEADLINE_TEMPLATE_KEYS = [
+export interface TextTemplates {
+  /** `{placeholder}` substitution; unknown placeholders are left as-is. */
+  history: Record<HistoryTemplateKey, { title: string; summary: string }>;
+}
+const templatePair = z.object({ title: z.string().min(1), summary: z.string().min(1) });
+export const TextTemplatesSchema: z.ZodType<TextTemplates> = z.object({
+  history: z.object(Object.fromEntries(HISTORY_TEMPLATE_KEYS.map((k) => [k, templatePair]))),
+}) as unknown as z.ZodType<TextTemplates>;
+
+/* ----------------------------------------------------------------------------
+ * Newspaper content (docs/architecture/10-voice-and-copy.md): mastheads, journalists and story
+ * template pools. The engine picks templates with the seeded RNG and fills `{slots}`.
+ * ------------------------------------------------------------------------- */
+
+export const PAPER_STYLES = ['broadsheet', 'tabloid', 'record'] as const;
+export type PaperStyle = (typeof PAPER_STYLES)[number];
+
+/** How the paper regards the player (from their media reputation). */
+export const STORY_TONES = ['flattering', 'neutral', 'sneering'] as const;
+export type StoryTone = (typeof STORY_TONES)[number];
+
+export const BYLINE_ROLES = ['lead', 'politics', 'sketch', 'local', 'sport', 'weather'] as const;
+export type BylineRole = (typeof BYLINE_ROLES)[number];
+
+/** Story kinds the engine derives from simulation records; content provides templates for each. */
+export const POLITICS_STORY_KINDS = [
+  'opening.parliament',
+  'opening.player',
+  'opening.bill',
+  'opening.whips',
+  'opening.rebels',
   'division.won_comfortably',
   'division.won_narrowly',
   'division.lost',
   'division.rebellion',
+  'division.chief_whip',
+  'division.player_loyal',
   'division.upcoming',
-  'resignation',
-  'appointment',
-  'reshuffle',
-  'concession',
-  'stability.low',
   'player.rebelled',
   'player.promoted',
+  'player.backed_bill',
+  'player.opposed_bill',
+  'player.declared_rebellion',
+  'player.passed_over',
+  'player.endorsed',
+  'player.sketch',
+  'promise.kept',
+  'promise.broken',
+  'appointment',
+  'resignation',
+  'dismissal',
+  'reshuffle',
+  'concession',
+  'minister.considering',
+  'protest',
+  'relationship.warmed',
+  'relationship.soured',
+  'gossip.courting',
+  'gossip.lobbying',
+  'gossip.plotting',
+  'stability.low',
+  'poll',
   'quiet_week',
 ] as const;
-export type HeadlineTemplateKey = (typeof HEADLINE_TEMPLATE_KEYS)[number];
+export type PoliticsStoryKind = (typeof POLITICS_STORY_KINDS)[number];
 
-export interface TextTemplates {
-  /** `{placeholder}` substitution; unknown placeholders are left as-is. */
-  history: Record<HistoryTemplateKey, { title: string; summary: string }>;
-  /** Several variants per key; the engine picks one deterministically. */
-  headlines: Record<HeadlineTemplateKey, { text: string; standfirst: string }[]>;
+export const FILLER_SECTION_KEYS = [
+  'constituencies',
+  'and_finally',
+  'letters',
+  'weather',
+  'sport',
+  'classifieds',
+  'corrections',
+] as const satisfies readonly FillerSectionKey[];
+
+export interface StoryTemplate<K extends string = string> {
+  /** Stable id, remembered in the briefing's ring buffer to avoid repeats. */
+  id: string;
+  kind: K;
+  /** At most 12 words once filled. */
+  headline: string;
+  /** One sentence; empty for none. */
+  standfirst: string;
+  /** One to three sentences; empty for none. */
+  body: string;
+  /** Restrict to these paper styles (default: any). */
+  styles?: PaperStyle[];
+  /** Only used when the paper regards the player this way (default: any tone). */
+  tone?: StoryTone;
 }
-const templatePair = z.object({ title: z.string().min(1), summary: z.string().min(1) });
-const headlineVariants = z
-  .array(z.object({ text: z.string().min(1), standfirst: z.string() }))
-  .min(1);
-export const TextTemplatesSchema: z.ZodType<TextTemplates> = z.object({
-  history: z.object(Object.fromEntries(HISTORY_TEMPLATE_KEYS.map((k) => [k, templatePair]))),
-  headlines: z.object(Object.fromEntries(HEADLINE_TEMPLATE_KEYS.map((k) => [k, headlineVariants]))),
-}) as unknown as z.ZodType<TextTemplates>;
+
+export interface MastheadDefinition {
+  key: string;
+  title: string;
+  style: PaperStyle;
+  slogans: string[];
+  price: string;
+  /** Edition number of turn 0; each week adds one. */
+  editionBase: number;
+  editionLabels: string[];
+  sectionTitles: Record<NewspaperSectionKey, string>;
+  /**
+   * Byline variants per role. Slots: {politicalEditor} {lobby} {sketch} {local} {sport}, filled
+   * with the paper's staff (deterministic per campaign).
+   */
+  bylines: Record<BylineRole, string[]>;
+}
+
+export interface NewspaperContent {
+  mastheads: MastheadDefinition[];
+  /** Fictional journalists' full names. */
+  journalists: string[];
+  politics: StoryTemplate<PoliticsStoryKind>[];
+  filler: StoryTemplate<FillerSectionKey>[];
+  /** Word pools for `{slots}` that are not world data (`{vegetable}`, `{animal}`…). */
+  pools: Record<string, string[]>;
+}
+
+const storyTemplateSchema = <K extends string>(kinds: readonly [K, ...K[]]) =>
+  z.object({
+    id: z.string().regex(/^[a-z0-9_.-]+$/),
+    kind: z.enum(kinds),
+    headline: z.string().min(1),
+    standfirst: z.string(),
+    body: z.string(),
+    styles: z.array(z.enum(PAPER_STYLES)).min(1).optional(),
+    tone: z.enum(STORY_TONES).optional(),
+  });
+const nonEmptyStrings = z.array(z.string().min(1)).min(1);
+export const MastheadDefinitionSchema: z.ZodType<MastheadDefinition> = z.object({
+  key: z.string().regex(/^paper\.[a-z_]+$/),
+  title: z.string().min(1),
+  style: z.enum(PAPER_STYLES),
+  slogans: nonEmptyStrings,
+  price: z.string().min(1),
+  editionBase: z.number().int().min(1),
+  editionLabels: nonEmptyStrings,
+  sectionTitles: z.object(
+    Object.fromEntries(NEWSPAPER_SECTION_KEYS.map((k) => [k, z.string().min(1)])),
+  ),
+  bylines: z.object(Object.fromEntries(BYLINE_ROLES.map((k) => [k, nonEmptyStrings]))),
+}) as unknown as z.ZodType<MastheadDefinition>;
+export const NewspaperContentSchema: z.ZodType<NewspaperContent> = z.object({
+  mastheads: z.array(MastheadDefinitionSchema).min(1),
+  journalists: z.array(z.string().min(1)).min(12),
+  politics: z.array(storyTemplateSchema(POLITICS_STORY_KINDS)),
+  filler: z.array(storyTemplateSchema(FILLER_SECTION_KEYS)),
+  pools: z.record(z.string(), nonEmptyStrings),
+}) as unknown as z.ZodType<NewspaperContent>;
 
 export interface ContentRegistry {
   version: number;
@@ -292,6 +416,7 @@ export interface ContentRegistry {
   names: NamePools;
   places: Record<Nation, PlaceNameParts>;
   templates: TextTemplates;
+  newspaper: NewspaperContent;
 }
 export const ContentRegistrySchema: z.ZodType<ContentRegistry> = z.object({
   version: z.number().int().min(1),
@@ -316,6 +441,7 @@ export const ContentRegistrySchema: z.ZodType<ContentRegistry> = z.object({
     northern_ireland: PlaceNamePartsSchema,
   }),
   templates: TextTemplatesSchema,
+  newspaper: NewspaperContentSchema,
 });
 
 /* ----------------------------------------------------------------------------

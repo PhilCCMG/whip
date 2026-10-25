@@ -1,193 +1,159 @@
-import { HistoryTypeSchema } from '@whip/contracts';
-import { Badge, Button, cn, Select } from '@whip/ui';
-import { useId } from 'react';
-import { useHistory } from '../api/hooks';
-import type { HistoryItem, HistoryType } from '../api/types';
-import { Empty, ErrorState, Loading } from '../components/states';
-import { addDays, formatShortDate, formatSimDate, humanise } from '../lib/format';
+import { cn, Kicker, Slash } from '@whip/ui';
+import { useCampaignState, useHistory } from '../api/hooks';
+import type { HistoryType } from '../api/types';
+import { ErrorState, Loading } from '../components/states';
+import { WeekPage } from '../features/archive/chronicle';
+import { groupByWeek } from '../features/archive/model';
+import { MoreBar, ToggleRow } from '../features/tea-room/controls';
+import { GameScreenHeader } from '../game-ui/game-screen';
 import { useCampaignId } from '../lib/params';
 import { useSentinel } from '../lib/use-sentinel';
 import { useUiStore } from '../stores/ui-store';
 
-const TYPES = HistoryTypeSchema.options;
+const TABS: { value: HistoryType | undefined; label: string }[] = [
+  { value: undefined, label: 'All papers' },
+  { value: 'division', label: 'Divisions' },
+  { value: 'appointment', label: 'Appointments' },
+  { value: 'resignation', label: 'Resignations' },
+  { value: 'event', label: 'Events' },
+  { value: 'action_outcome', label: 'Actions' },
+];
 
 const IMPORTANCE = [
   { value: undefined, label: 'Everything' },
   { value: 3, label: 'Notable' },
-  { value: 4, label: 'Major' },
-  { value: 5, label: 'Front page' },
+  { value: 4, label: 'Front page' },
 ] as const;
 
-function groupByTurn(items: HistoryItem[]) {
-  const groups: { turn: number; items: HistoryItem[] }[] = [];
-  for (const item of items) {
-    const last = groups.at(-1);
-    if (last && last.turn === item.turn) last.items.push(item);
-    else groups.push({ turn: item.turn, items: [item] });
-  }
-  return groups;
-}
-
-/** Monday of the item's week, assuming turn 1 starts on its earliest date. */
-function weekStart(items: HistoryItem[]) {
-  const dates = items.map((i) => i.simDate).sort();
-  const first = dates[0] ?? '2029-09-03';
-  const d = new Date(`${first}T00:00:00Z`);
-  const offset = (d.getUTCDay() + 6) % 7;
-  return addDays(first, -offset);
-}
-
+/**
+ * ARCHIVE: the record as press cuttings and Hansard-style ledger lines, a page per week. Filter
+ * tabs by type, "my career only", importance; older weeks load as you scroll ("OLDER PAPERS").
+ */
 export function Component() {
   const id = useCampaignId();
   const filters = useUiStore((s) => s.historyFilters);
   const setFilters = useUiStore((s) => s.setHistoryFilters);
+  const state = useCampaignState(id);
+  const playerId = state.data?.player.id;
   const q = useHistory(id, filters);
   const items = q.data?.pages.flatMap((p) => p.items) ?? [];
-  const groups = groupByTurn(items);
+  const groups = groupByWeek(items);
   const sentinel = useSentinel<HTMLDivElement>(
     () => void q.fetchNextPage(),
-    q.hasNextPage && !q.isFetchingNextPage,
+    !!q.hasNextPage && !q.isFetchingNextPage,
   );
-  const typeId = useId();
+  const mineOnly = !!filters.politicianId && filters.politicianId === playerId;
 
   return (
-    <div className="mx-auto grid max-w-[980px] grid-cols-[minmax(0,1fr)] gap-4 p-3 sm:p-4 lg:p-5">
-      <header className="flex flex-wrap items-end justify-between gap-2 border-b-[3px] border-ink pb-2">
-        <h1 className="font-display text-4xl leading-none font-black font-stretch-condensed">
-          The record
-        </h1>
-        <p className="text-xs text-moss-600">Everything that has happened, week by week.</p>
-      </header>
-
-      <div className="flex flex-wrap items-center gap-3 bg-paper p-3">
-        <label htmlFor={typeId} className="sr-only">
-          Type
-        </label>
-        <Select
-          id={typeId}
-          wrapperClassName="w-full sm:w-56"
-          value={filters.type ?? ''}
-          onChange={(e) =>
-            setFilters({ type: (e.target.value || undefined) as HistoryType | undefined })
-          }
-        >
-          <option value="">All types</option>
-          {TYPES.map((t) => (
-            <option key={t} value={t}>
-              {humanise(t)}
-            </option>
-          ))}
-        </Select>
-        <div role="group" aria-label="Importance" className="flex flex-wrap gap-px bg-moss-200">
-          {IMPORTANCE.map((o) => {
-            const active = filters.minImportance === o.value;
-            return (
-              <button
-                key={o.label}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setFilters({ minImportance: o.value })}
-                className={cn(
-                  'h-9 cursor-pointer px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
-                  active ? 'bg-ink text-paper' : 'bg-paper hover:bg-paper-deep',
-                )}
-              >
-                {o.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {q.isPending ? (
-        <Loading label="Loading the record" />
-      ) : q.isError ? (
-        <ErrorState error={q.error} onRetry={() => void q.refetch()} />
-      ) : groups.length === 0 ? (
-        <Empty>Nothing recorded matches these filters.</Empty>
-      ) : (
-        <div className="grid gap-6">
-          {groups.map((g) => (
-            <section
-              key={g.turn}
-              aria-labelledby={`wk-${g.turn}`}
-              className="grid gap-0 sm:grid-cols-[7.5rem_minmax(0,1fr)]"
-            >
-              <h2 id={`wk-${g.turn}`} className="top-[4.5rem] self-start pb-2 sm:sticky">
-                <span className="block font-display text-3xl leading-none font-black font-stretch-condensed">
-                  Week {g.turn}
-                </span>
-                <span className="block text-xs text-moss-600">
-                  w/c {formatSimDate(weekStart(g.items), { year: false })}
-                </span>
-              </h2>
-              <ol className="grid gap-px border-t-[3px] border-ink bg-moss-200">
-                {g.items.map((item) => (
-                  <li
-                    key={item.seq}
+    <div className="flex min-h-full flex-col">
+      <GameScreenHeader
+        title="Archive"
+        kicker="Everything that happened, on the record"
+        crop="70% 85%"
+      />
+      <div className="flex-1 px-4 py-6 md:px-8 md:py-7">
+        <div className="mx-auto grid max-w-[68rem] grid-cols-[minmax(0,1fr)] gap-7">
+          <div className="grid gap-4 border-b border-paper/15 pb-5">
+            <nav aria-label="Filter by type">
+              <ul className="flex flex-wrap gap-x-1 gap-y-1.5 border-b-2 border-paper-bright">
+                {TABS.map((t) => {
+                  const active = filters.type === t.value;
+                  return (
+                    <li key={t.label}>
+                      <button
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => !active && setFilters({ type: t.value })}
+                        className={cn(
+                          'h-9 cursor-pointer px-3.5 font-display text-[1rem] leading-none font-black tracking-[0.02em] uppercase [font-stretch:72%] [clip-path:polygon(0_0,calc(100%-0.5em)_0,100%_100%,0_100%)] pr-5',
+                          'focus-visible:outline-2 focus-visible:-outline-offset-4',
+                          active
+                            ? 'bg-paper-bright text-ink focus-visible:outline-whip'
+                            : 'bg-ink text-paper/80 hover:text-paper-bright focus-visible:outline-paper-bright',
+                        )}
+                      >
+                        {t.label}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+            <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
+              <ToggleRow
+                label="Importance"
+                options={IMPORTANCE}
+                value={filters.minImportance as 3 | 4 | undefined}
+                onChange={(minImportance) => setFilters({ minImportance })}
+              />
+              <div>
+                <Kicker className="mb-1.5 text-paper/70">Whose story</Kicker>
+                <button
+                  type="button"
+                  aria-pressed={mineOnly}
+                  disabled={!playerId}
+                  onClick={() => setFilters({ politicianId: mineOnly ? undefined : playerId })}
+                  className={cn(
+                    'inline-flex h-8 cursor-pointer items-center gap-2 px-2.5 text-[12px] leading-none font-bold tracking-[0.06em] uppercase',
+                    'focus-visible:outline-2 focus-visible:-outline-offset-2',
+                    mineOnly
+                      ? 'bg-whip text-white focus-visible:outline-paper-bright'
+                      : 'bg-ink text-paper/80 outline-1 -outline-offset-1 outline-paper/15 hover:text-paper-bright focus-visible:outline-paper-bright',
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
                     className={cn(
-                      'grid grid-cols-[auto_minmax(0,1fr)] gap-3 bg-paper px-3 py-2.5',
-                      item.importance >= 4 && 'bg-white/60',
+                      'grid size-4 place-items-center outline-1 -outline-offset-1',
+                      mineOnly ? 'bg-paper-bright outline-paper-bright' : 'outline-paper/60',
                     )}
                   >
-                    <span
-                      className="mt-1 flex w-4 flex-col gap-0.5"
-                      role="img"
-                      aria-label={`Importance ${item.importance} of 5`}
-                    >
-                      {Array.from({ length: 5 }, (_, i) => (
-                        <span
-                          key={i}
-                          className={cn(
-                            'h-1 w-full',
-                            5 - i <= item.importance
-                              ? item.importance >= 4
-                                ? 'bg-whip'
-                                : 'bg-ink'
-                              : 'bg-moss-200',
-                          )}
-                        />
-                      ))}
-                    </span>
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                        <h3
-                          className={cn(
-                            'leading-tight',
-                            item.importance >= 4
-                              ? 'font-display text-xl font-extrabold font-stretch-condensed'
-                              : 'text-sm font-semibold',
-                          )}
-                        >
-                          {item.title}
-                        </h3>
-                        <Badge tone="neutral">{humanise(item.type)}</Badge>
-                        <span className="text-[11px] text-moss-600 tabular">
-                          {formatShortDate(item.simDate)}
-                        </span>
-                      </div>
-                      <p className="mt-0.5 max-w-[70ch] text-sm leading-snug text-ink/75">
-                        {item.summary}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          ))}
+                    {mineOnly && <Slash className="h-3 w-auto" />}
+                  </span>
+                  Only my career
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {q.isPending ? (
+            <Loading label="Fetching the bound volumes" className="text-paper" />
+          ) : q.isError ? (
+            <ErrorState
+              className="bg-paper text-ink"
+              error={q.error}
+              onRetry={() => void q.refetch()}
+            />
+          ) : groups.length === 0 ? (
+            <p className="border border-dashed border-paper/25 px-4 py-8 text-center text-[14px] text-paper/80">
+              {mineOnly
+                ? 'Nothing on the record yet. Some would call that a career.'
+                : 'Nothing on file. Either it never happened or it has been shredded.'}
+            </p>
+          ) : (
+            <div className="grid gap-9">
+              {groups.map((g) => (
+                <WeekPage key={g.turn} turn={g.turn} items={g.items} playerId={playerId} />
+              ))}
+            </div>
+          )}
+          <div ref={sentinel}>
+            {q.hasNextPage ? (
+              <MoreBar
+                onClick={() => void q.fetchNextPage()}
+                busy={q.isFetchingNextPage}
+                label="Older papers"
+                busyLabel="Fetching older papers…"
+              />
+            ) : (
+              groups.length > 0 && (
+                <p className="text-center text-[12px] font-semibold text-paper/65">
+                  The record begins here. Earlier volumes were lost in a reorganisation.
+                </p>
+              )
+            )}
+          </div>
         </div>
-      )}
-      <div ref={sentinel} className="flex justify-center py-2">
-        {q.hasNextPage && (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={q.isFetchingNextPage}
-            onClick={() => void q.fetchNextPage()}
-          >
-            {q.isFetchingNextPage ? 'Loading…' : 'Load older'}
-          </Button>
-        )}
       </div>
     </div>
   );

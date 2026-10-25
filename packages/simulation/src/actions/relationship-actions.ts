@@ -62,7 +62,13 @@ export const meetPolitician: ActionDefinition<'meet_politician'> = {
     ];
     const reveal = revealIntentions(state, actor, target, env.ctx.content, 'private meeting');
     effects.push(...reveal.effects);
-    const summary = [`You met ${displayName(target)}.`, ...reveal.text].join(' ');
+    const mood =
+      compat > 0.5
+        ? 'It went well; there were biscuits.'
+        : compat < 0
+          ? 'It was frosty, even by Westminster standards.'
+          : 'Cordial enough, in the British sense.';
+    const summary = [`You met ${displayName(target)} over tea. ${mood}`, ...reveal.text].join(' ');
     return {
       status: 'succeeded',
       summary,
@@ -72,8 +78,7 @@ export const meetPolitician: ActionDefinition<'meet_politician'> = {
         template: 'action.meet_politician',
         vars: {
           target: displayName(target),
-          detail:
-            compat > 0.5 ? 'It went well.' : compat < 0 ? 'It was frosty.' : 'Cordial enough.',
+          detail: mood,
         },
         importance: 1,
         subjectIds: [target.id],
@@ -133,7 +138,11 @@ export const buildRelationship: ActionDefinition<'build_relationship'> = {
       ),
     ];
     const landed =
-      mult >= 1.3 ? 'It landed very well.' : mult <= 0.7 ? 'It did not land.' : 'It went fine.';
+      mult >= 1.3
+        ? 'It landed very well; they have started using your first name.'
+        : mult <= 0.7
+          ? 'It did not land. They checked their phone twice.'
+          : 'It went fine, which is to say nobody left early.';
     return {
       status: mult <= 0.7 ? 'partial' : 'succeeded',
       summary: `You spent time with ${displayName(target)}, leaning on ${flattery ? 'charm' : 'substance'}. ${landed}`,
@@ -197,7 +206,7 @@ export const seekEndorsement: ActionDefinition<'seek_endorsement'> = {
     if (success) {
       return {
         status: 'succeeded',
-        summary: `${displayName(target)} agreed to endorse you. You owe them a favour.`,
+        summary: `${displayName(target)} agreed to endorse you. You owe them a favour, and they will remember which one.`,
         effects: [
           { kind: 'endorsement.add', endorserId: target.id, endorseeId: actor.id },
           rel(
@@ -227,7 +236,7 @@ export const seekEndorsement: ActionDefinition<'seek_endorsement'> = {
     }
     return {
       status: 'failed',
-      summary: `${displayName(target)} declined to endorse you (about a ${Math.round(chance * 100)}% chance).`,
+      summary: `${displayName(target)} declined to endorse you, citing "timing" (it was about a ${Math.round(chance * 100)}% chance).`,
       effects: [
         rel(
           actor.id,
@@ -331,7 +340,7 @@ export const makePoliticalPromise: ActionDefinition<'make_political_promise'> = 
     const bill = getBill(state, div.billId);
     return {
       status: 'succeeded',
-      summary: `You promised ${displayName(target)} to vote ${VOTE_LABEL[p.vote]} at ${stageLabel(div.stage)}. ${matches ? 'It is what they wanted to hear.' : `They had hoped for ${VOTE_LABEL[wants]}.`}`,
+      summary: `You promised ${displayName(target)} to vote ${VOTE_LABEL[p.vote]} at ${stageLabel(div.stage)}. ${matches ? 'It was exactly what they wanted to hear.' : `They had hoped for ${VOTE_LABEL[wants]}, and said so with their eyebrows.`}`,
       effects,
       scheduled: [
         {

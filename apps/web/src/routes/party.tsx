@@ -1,195 +1,154 @@
-import { Badge, bandColour, cn, Meter, Panel, PanelBody, PanelHeader, StatMeter } from '@whip/ui';
-import { useParty } from '../api/hooks';
-import { PoliticianLink } from '../components/politician-bits';
+import { useCampaignState, useParty } from '../api/hooks';
 import { ErrorState, Loading } from '../components/states';
-import { signed } from '../lib/format';
+import { FactionCard, LeaderPlate, PartyGauges, PowerLadder } from '../features/party-hq/board';
+import { Compass, type CompassPoint } from '../features/tea-room/bits';
+import { asPercent, pickBy } from '../features/tea-room/flavour';
+import { DeskHeading, GameScreenHeader } from '../game-ui/game-screen';
 import { useCampaignId } from '../lib/params';
 
-function Pips({ value, max, label }: { value: number; max: number; label: string }) {
-  return (
-    <span className="flex gap-0.5" role="img" aria-label={`${label}: ${value} of ${max}`}>
-      {Array.from({ length: max }, (_, i) => (
-        <span key={i} className={cn('h-4 w-2.5', i < value ? 'bg-whip' : 'bg-white/15')} />
-      ))}
-    </span>
-  );
-}
+const LEADER_NOTES = [
+  'Enjoys the full confidence of colleagues, for the moment.',
+  'Has never once considered resigning. Publicly.',
+  'Described by allies as “a safe pair of hands” and by others as “hands”.',
+] as const;
+const WHIP_NOTES = [
+  'Keeps a little black book. It is a large book.',
+  'Has offered colleagues “every support”, which they found ominous.',
+  'Remembers every vote you have cast. And several you have not.',
+] as const;
 
+/**
+ * PARTY HQ: the party as a faction-politics board. The leadership and three gauges, the rival
+ * camps as cards, and the power ladder beside a compass of where the camps stand.
+ */
 export function Component() {
   const id = useCampaignId();
   const q = useParty(id);
-  if (q.isPending) return <Loading label="Loading the party" />;
+  const state = useCampaignState(id);
+  if (q.isPending) return <Loading label="Consulting the whips" className="text-paper" />;
   if (q.isError)
-    return <ErrorState className="m-5" error={q.error} onRetry={() => void q.refetch()} />;
+    return (
+      <ErrorState
+        className="m-5 bg-paper text-ink"
+        error={q.error}
+        onRetry={() => void q.refetch()}
+      />
+    );
   const party = q.data;
-  const maxInfluence = Math.max(...party.powerMap.map((m) => m.influence), 1);
+  const player = state.data?.player;
+  const poll = asPercent(party.pollShare);
+
+  const points: CompassPoint[] = [
+    {
+      id: party.id,
+      label: party.shortName,
+      kind: 'mark',
+      quiet: true,
+      colour: party.colour,
+      ...party.ideology,
+    },
+    ...party.factions.map((f) => ({
+      id: f.id,
+      label: f.name.split(/\s|&/)[0] ?? f.name,
+      kind: 'mark' as const,
+      colour: 'var(--color-lamp)',
+      ...f.ideology,
+    })),
+    ...(player ? [{ id: 'you', label: 'You', kind: 'you' as const, ...player.ideology }] : []),
+  ];
+
+  // Zoom the compass onto the camps: they cluster, and a full-scale map hides the argument.
+  const spread = Math.max(...points.flatMap((pt) => [Math.abs(pt.economic), Math.abs(pt.social)]));
+  const domain = Math.min(100, Math.max(40, Math.ceil((spread * 1.15) / 10) * 10));
 
   return (
-    <div className="mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)] gap-4 p-3 sm:p-4 lg:p-5">
-      <header
-        className="grid gap-5 bg-ink px-5 pt-4 pb-5 text-paper lg:grid-cols-[minmax(0,1fr)_auto]"
-        style={{ borderTop: `6px solid ${party.colour}` }}
-      >
-        <div>
-          <p className="text-xs text-paper/60">
-            {party.inGovernment ? 'Party of government' : 'In opposition'} · {party.seats} seats ·{' '}
-            {party.pollShare.toFixed(0)}% in the polls
-          </p>
-          <h1 className="mt-2 font-display text-[clamp(2.2rem,5.5vw,3.75rem)] leading-[0.9] font-black font-stretch-condensed">
-            {party.name}
-          </h1>
-          <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
-            <div>
-              <dt className="inline text-paper/60">Leader </dt>
-              <dd className="inline">
-                <PoliticianLink campaignId={id} id={party.leader.id} name={party.leader.name} />
-              </dd>
+    <div className="flex min-h-full flex-col">
+      <GameScreenHeader
+        title="Party HQ"
+        kicker={`${party.name} · ${party.inGovernment ? 'Party of government' : 'In opposition'} · ${party.seats} seats · ${poll.toFixed(0)}% in the polls`}
+        crop="15% 55%"
+      />
+      <div className="grid flex-1 grid-cols-[minmax(0,1fr)] content-start gap-9 px-4 py-6 md:px-8 md:py-7">
+        <section aria-labelledby="lead-title" className="grid gap-4">
+          <DeskHeading
+            id="lead-title"
+            title="The leadership"
+            meta="Who runs the party, and how well."
+          />
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] xl:items-center">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <LeaderPlate
+                role="Leader"
+                person={party.leader}
+                colour={party.colour}
+                campaignId={id}
+                note={pickBy(party.leader.id, LEADER_NOTES)}
+              />
+              {party.chiefWhip && (
+                <LeaderPlate
+                  role="Chief Whip"
+                  person={party.chiefWhip}
+                  colour={party.colour}
+                  campaignId={id}
+                  note={pickBy(party.chiefWhip.id, WHIP_NOTES)}
+                />
+              )}
             </div>
-            {party.chiefWhip && (
-              <div>
-                <dt className="inline text-paper/60">Chief Whip </dt>
-                <dd className="inline">
-                  <PoliticianLink
-                    campaignId={id}
-                    id={party.chiefWhip.id}
-                    name={party.chiefWhip.name}
-                  />
-                </dd>
-              </div>
-            )}
-          </dl>
-        </div>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:w-[440px]">
-          <div>
-            <dt className="text-[11px] text-paper/60">Unity</dt>
-            <dd className="font-display text-4xl leading-none font-black font-stretch-condensed tabular">
-              {Math.round(party.unity)}
-            </dd>
-            <Meter
-              value={party.unity}
-              colour={bandColour(party.unity / 100)}
-              className="mt-1.5"
-              aria-label="Unity"
+            <PartyGauges party={party} />
+          </div>
+        </section>
+
+        <section aria-labelledby="camps-title" className="grid gap-4">
+          <DeskHeading
+            id="camps-title"
+            title="Rival camps"
+            meta={`${party.factions.length} factions, each certain it is the real party`}
+          />
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {party.factions.map((f) => (
+              <FactionCard
+                key={f.id}
+                f={f}
+                campaignId={id}
+                partySeats={party.seats}
+                colour={party.colour}
+              />
+            ))}
+          </div>
+        </section>
+
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-9 xl:grid-cols-[minmax(0,1fr)_24rem] xl:gap-x-10">
+          <section aria-labelledby="power-title" className="grid content-start gap-4">
+            <DeskHeading
+              id="power-title"
+              title="Who matters"
+              meta="Ranked by influence. Rankings disputed by everyone below first place."
             />
-          </div>
-          <div>
-            <dt className="text-[11px] text-paper/60">Whip strength</dt>
-            <dd className="mt-1.5">
-              <Pips value={party.whipStrength} max={5} label="Whip strength" />
-            </dd>
-          </div>
-          {party.governmentStability !== null && (
-            <div>
-              <dt className="text-[11px] text-paper/60">Government stability</dt>
-              <dd className="font-display text-4xl leading-none font-black font-stretch-condensed tabular">
-                {Math.round(party.governmentStability)}
-              </dd>
-              <Meter
-                value={party.governmentStability}
-                colour={bandColour(party.governmentStability / 100)}
-                className="mt-1.5"
-                aria-label="Government stability"
+            <PowerLadder
+              members={party.powerMap}
+              colour={party.colour}
+              campaignId={id}
+              playerId={player?.id}
+            />
+          </section>
+          <section aria-labelledby="map-title" className="grid content-start gap-4">
+            <DeskHeading
+              id="map-title"
+              title="Where the camps stand"
+              meta={`Outline: you · party colour: the party line · map centre, ±${domain} each way`}
+            />
+            <div className="bg-ink p-3 outline-1 -outline-offset-1 outline-paper/15">
+              <Compass
+                tone="paper"
+                labelPoints
+                domain={domain}
+                points={points}
+                className="mx-auto aspect-square w-full max-w-[22rem]"
               />
             </div>
-          )}
-        </dl>
-      </header>
-
-      <section aria-labelledby="factions-title">
-        <h2 id="factions-title" className="sr-only">
-          Factions
-        </h2>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {party.factions.map((f, i) => (
-            <Panel
-              key={f.id}
-              aria-labelledby={`f-${f.id}`}
-              className={cn('bg-paper', f.playerIsMember && 'outline-2 outline-whip')}
-            >
-              <PanelHeader
-                number={i + 1}
-                title={f.name}
-                titleId={`f-${f.id}`}
-                actions={f.playerIsMember ? <Badge tone="whip">Your faction</Badge> : null}
-              >
-                <p className="mt-1 text-xs text-moss-600">
-                  Led by <PoliticianLink campaignId={id} id={f.leader.id} name={f.leader.name} /> ·{' '}
-                  {f.memberCount} MPs
-                </p>
-              </PanelHeader>
-              <PanelBody className="grid gap-3">
-                <StatMeter label="Cohesion" value={f.cohesion} banded />
-                {f.leaderTrustInPlayer !== null && (
-                  <StatMeter
-                    label={`${f.leader.name.split(' ').at(-1) ?? 'Leader'}’s trust in you`}
-                    value={f.leaderTrustInPlayer}
-                    min={-100}
-                    max={100}
-                    centred
-                    display={signed(Math.round(f.leaderTrustInPlayer))}
-                    colour={f.leaderTrustInPlayer < 0 ? 'var(--color-whip)' : 'var(--color-good)'}
-                  />
-                )}
-                <p className="text-xs text-moss-600 tabular">
-                  Economic {signed(Math.round(f.ideology.economic))} · Social{' '}
-                  {signed(Math.round(f.ideology.social))}
-                </p>
-                {f.demands.length > 0 && (
-                  <div>
-                    <h3 className="text-xs font-semibold">Demands</h3>
-                    <ul className="mt-1 grid gap-1 text-sm">
-                      {f.demands.map((d) => (
-                        <li key={d} className="border-l-[3px] border-whip pl-2 leading-snug">
-                          {d}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </PanelBody>
-            </Panel>
-          ))}
+          </section>
         </div>
-      </section>
-
-      <Panel aria-labelledby="power-title" className="bg-paper">
-        <PanelHeader number={party.factions.length + 1} title="Power map" titleId="power-title">
-          <p className="mt-1 text-xs text-moss-600">The most influential members of the party.</p>
-        </PanelHeader>
-        <PanelBody>
-          <ol className="grid gap-x-8 lg:grid-cols-2">
-            {party.powerMap.map((m, i) => (
-              <li
-                key={m.id}
-                className="grid grid-cols-[1.5rem_minmax(0,1fr)_minmax(4rem,40%)_2.5rem] items-center gap-2 border-b border-moss-200 py-1.5 text-sm"
-              >
-                <span className="text-xs text-moss-600 tabular">{i + 1}</span>
-                <span className="min-w-0">
-                  <PoliticianLink
-                    campaignId={id}
-                    id={m.id}
-                    name={m.name}
-                    className="block truncate"
-                  />
-                  <span className="block truncate text-xs text-moss-600">
-                    {m.offices.join(', ') || 'Backbencher'}
-                  </span>
-                </span>
-                <span className="h-2 bg-moss-100" aria-hidden="true">
-                  <span
-                    className="block h-full"
-                    style={{
-                      width: `${(m.influence / maxInfluence) * 100}%`,
-                      backgroundColor: party.colour,
-                    }}
-                  />
-                </span>
-                <span className="text-right font-semibold tabular">{Math.round(m.influence)}</span>
-              </li>
-            ))}
-          </ol>
-        </PanelBody>
-      </Panel>
+      </div>
     </div>
   );
 }

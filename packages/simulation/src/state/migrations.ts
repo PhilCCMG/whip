@@ -33,6 +33,20 @@ export const MIGRATIONS: Record<number, Migration> = {
       politicians: { ...politicians, byId: migrated },
     };
   },
+  /**
+   * v2 → v3: the briefing gains the weekly newspaper and the story-template ring buffer. Saves from
+   * before the newspaper have no edition (null until the next advance prints one) and no history
+   * of used templates.
+   */
+  2: (s) => {
+    const meta = isObject(s.meta) ? s.meta : {};
+    const briefing = isObject(s.briefing) ? s.briefing : {};
+    return {
+      ...s,
+      meta: { ...meta, schemaVersion: 3 },
+      briefing: { ...briefing, newspaper: null, recentStoryTemplates: [] },
+    };
+  },
 };
 
 export function migrateToCurrent(

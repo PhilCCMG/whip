@@ -2,7 +2,8 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { useSettingsStore } from '../stores/settings-store';
 import { Providers } from '../app';
 import { createQueryClient, REVISION_CONFLICT_MESSAGE } from '../lib/query-client';
 import { routes } from '../router';
@@ -10,6 +11,16 @@ import { CAMPAIGN_ID } from '../mocks/fixtures';
 import { renderApp } from '../test/render-app';
 
 const diaryCount = () => screen.findByText(/slots? free of 5/);
+
+// Reduced motion: END WEEK goes straight to the report (the transition has its own test).
+beforeEach(() => useSettingsStore.setState({ motion: 'reduced' }));
+afterEach(() => useSettingsStore.setState({ motion: 'system' }));
+
+/** END WEEK with free slots asks first; confirm it. */
+async function endWeek(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: 'End week' }));
+  await user.click(await screen.findByRole('button', { name: /End week anyway/ }));
+}
 
 describe('career overview (mock mode)', () => {
   it('plans an action from the catalogue with a politician picker', async () => {
@@ -64,13 +75,14 @@ describe('career overview (mock mode)', () => {
     renderApp(`/c/${CAMPAIGN_ID}`);
     await screen.findByText('Meet Daniel Osei');
 
-    await user.click(screen.getByRole('button', { name: 'End week' }));
+    await endWeek(user);
     const report = await screen.findByRole('dialog');
     expect(within(report).getByText('The week in Westminster')).toBeInTheDocument();
     expect(within(report).getByText('Meet Daniel Osei')).toBeInTheDocument();
     expect(within(report).getByText(/^Week 3 · w\/c/)).toBeInTheDocument();
-    await user.click(within(report).getByRole('button', { name: /Start week 4/ }));
-    expect((await screen.findAllByText(/Week 4/)).length).toBeGreaterThan(0);
+    await user.click(within(report).getByRole('button', { name: /Continue to week 4/ }));
+    // The HUD calendar has turned over to the new week.
+    expect(await screen.findByRole('group', { name: /^Week 4,/ })).toBeInTheDocument();
   });
 
   it('reopens last week’s report after a reload', async () => {
@@ -80,9 +92,9 @@ describe('career overview (mock mode)', () => {
     // Nothing has been played yet in this session, so there is no report to reopen.
     expect(screen.queryByRole('button', { name: /Last week’s report/ })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'End week' }));
+    await endWeek(user);
     const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: /Start week 4/ }));
+    await user.click(within(dialog).getByRole('button', { name: /Continue to week 4/ }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     first.unmount();
 

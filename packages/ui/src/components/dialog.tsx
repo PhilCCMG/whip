@@ -32,7 +32,7 @@ export function DialogContent({ className, children, hideClose, ...props }: Dial
       <DialogPrimitive.Content
         className={cn(
           'fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 flex-col',
-          'border-t-4 border-whip bg-background text-foreground shadow-[0_24px_60px_-20px_rgb(0_0_0/0.6)]',
+          'border-t-4 border-whip bg-background text-foreground',
           'focus:outline-none motion-safe:animate-in-rise',
           className,
         )}

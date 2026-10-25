@@ -305,8 +305,8 @@ function resolvePromotionRequests(draft: GameState, tc: TurnContext): void {
     if (p.isPlayer) {
       const why =
         open.length === 0
-          ? 'There are no suitable vacancies.'
-          : `Your case was not strong enough (score ${clamp(Math.round((best?.u ?? 0) * 100), -99, 99)} of ${PROMOTION_THRESHOLD * 100} needed). Endorsements, loyalty and the Chief Whip's regard all help.`;
+          ? 'There are no suitable vacancies. The whips recommend patience, which is free.'
+          : `Your case was not strong enough (score ${clamp(Math.round((best?.u ?? 0) * 100), -99, 99)} of ${PROMOTION_THRESHOLD * 100} needed). Endorsements, loyalty and the Chief Whip's regard all help. The whips were kind about it, which is somehow worse.`;
       tc.notify(draft, { severity: 'warning', title: 'Not this time', body: why, link: null });
     }
   }

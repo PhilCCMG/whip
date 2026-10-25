@@ -22,6 +22,7 @@ import type {
 import { ambitionList, issueList, officeList, skillList } from './catalogue';
 import { eventList } from './events';
 import { namePools, placeNameParts } from './names';
+import { newspaperContent } from './newspaper';
 import { firstWeeks } from './scenarios/first-weeks';
 import { textTemplates } from './templates';
 import { traitList } from './traits';
@@ -48,6 +49,7 @@ export function loadContentRegistry(): ContentRegistry {
     names: namePools,
     places: placeNameParts,
     templates: textTemplates,
+    newspaper: newspaperContent,
   };
 }
 
@@ -68,5 +70,6 @@ export {
   namePools,
   placeNameParts,
   textTemplates,
+  newspaperContent,
 };
 export { generatedCabinetOfficeKeys } from './catalogue';

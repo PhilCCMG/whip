@@ -6,8 +6,8 @@ export const eventList: EventDefinition[] = [
     key: 'event.whips_office_summons',
     title: "A word from the whips' office",
     body:
-      'A note in your pigeonhole: the Chief Whip would like a word about the {bill} before the vote on {date}. ' +
-      'In this building, "a word" is never just a word.',
+      'A handwritten note in your pigeonhole: the Chief Whip would like "a quick word" about the {bill} before the vote on {date}. ' +
+      'In this building, a quick word is never quick, and rarely just the one.',
     audience: 'player',
     trigger: { kind: 'whips_suspect_waverer', chance: 0.6, maxWeeksBeforeDivision: 2 },
     cooldownWeeks: 3,
@@ -18,7 +18,7 @@ export const eventList: EventDefinition[] = [
         key: 'reassure',
         label: 'Reassure them',
         description:
-          'Tell the whips they can count on your vote. They will remember it, either way.',
+          'Tell the whips they can count on your vote. They will remember it, and so will you, later.',
         capitalCost: 0,
         effects: [
           {
@@ -49,7 +49,7 @@ export const eventList: EventDefinition[] = [
       {
         key: 'non_committal',
         label: 'Stay non-committal',
-        description: 'Listen politely, promise nothing.',
+        description: 'Nod, sip the tea, promise nothing. The whips have seen this before.',
         capitalCost: 0,
         effects: [
           {
@@ -66,7 +66,8 @@ export const eventList: EventDefinition[] = [
       {
         key: 'warn_them',
         label: 'Warn them you have doubts',
-        description: 'Be straight with the whips: as it stands, you cannot support it.',
+        description:
+          'Be straight with the whips: as it stands, you cannot support it. Honesty is admired here, briefly.',
         capitalCost: 0,
         effects: [
           {
@@ -101,10 +102,10 @@ export const eventList: EventDefinition[] = [
   },
   {
     key: 'event.constituency_green_belt_protest',
-    title: 'Green-belt protest in the constituency',
+    title: 'Placards on the village green',
     body:
-      'Residents have called a protest against the {bill}: they fear the new targets will open the green belt ' +
-      "around {subject}'s constituency to developers. The local paper wants to know where {addressee} stands.",
+      'Residents have called a protest against the {bill}, fearing the new targets will open the green belt ' +
+      "around {subject}'s constituency to developers. There is a banner, a tea urn, and a local reporter asking where {addressee} stands.",
     audience: 'any',
     trigger: {
       kind: 'constituency_protest',
@@ -121,7 +122,8 @@ export const eventList: EventDefinition[] = [
       {
         key: 'join_protest',
         label: 'Join the protest',
-        description: 'Stand with your constituents in front of the cameras. The whips will notice.',
+        description:
+          'Stand with your constituents in the drizzle, in front of the cameras. The whips own a television.',
         capitalCost: 0,
         effects: [
           { kind: 'local_standing', who: 'addressee', delta: 12 },
@@ -149,7 +151,8 @@ export const eventList: EventDefinition[] = [
       {
         key: 'meet_organisers',
         label: 'Meet the organisers',
-        description: 'Hear them out privately. It will cost you a diary slot next week.',
+        description:
+          'Hear them out privately over weak coffee in the village hall. It will cost you a diary slot next week.',
         capitalCost: 0,
         effects: [
           { kind: 'local_standing', who: 'addressee', delta: 5 },
@@ -161,7 +164,7 @@ export const eventList: EventDefinition[] = [
         key: 'back_the_bill',
         label: 'Back the bill',
         description:
-          'Defend the government line: the country needs the homes. Your constituents may not forgive it.',
+          'Defend the government line: the country needs the homes, just perhaps not these ones. Your constituents may not forgive it.',
         capitalCost: 0,
         effects: [
           { kind: 'local_standing', who: 'addressee', delta: -8 },
@@ -183,8 +186,8 @@ export const eventList: EventDefinition[] = [
     key: 'event.lobby_journalist_call',
     title: 'A call from the lobby',
     body:
-      "A political correspondent is writing about the {bill} and wants {addressee}'s take, on background. " +
-      'Whatever you say will be read by the whips by breakfast.',
+      "A political correspondent is writing about the {bill} and wants {addressee}'s take, strictly on background. " +
+      'Background, in this building, is read by the whips with their breakfast.',
     audience: 'player',
     trigger: { kind: 'journalist_call', chance: 0.3, firstTurn: 1 },
     cooldownWeeks: 3,
@@ -194,7 +197,7 @@ export const eventList: EventDefinition[] = [
       {
         key: 'brief_loyally',
         label: 'Give the loyal line',
-        description: 'Talk up the bill. Safe, dull, appreciated in the whips office.',
+        description: "Talk up the bill. Safe, dull and much appreciated in the whips' office.",
         capitalCost: 0,
         effects: [
           { kind: 'reputation', who: 'addressee', audience: 'media', delta: 3 },
@@ -212,7 +215,8 @@ export const eventList: EventDefinition[] = [
       {
         key: 'share_doubts',
         label: 'Share your doubts',
-        description: 'Be candid about the bill. Good copy, and a leak of your intentions.',
+        description:
+          'Be candid about the bill. Excellent copy, and a leak of your intentions with your name barely disguised.',
         capitalCost: 0,
         effects: [
           { kind: 'reputation', who: 'addressee', audience: 'media', delta: 7 },
@@ -233,7 +237,8 @@ export const eventList: EventDefinition[] = [
       {
         key: 'decline',
         label: 'Decline to comment',
-        description: 'Say nothing. Journalists remember who returns their calls.',
+        description:
+          'Say nothing at all. Journalists remember who returns their calls, and who does not.',
         capitalCost: 0,
         effects: [{ kind: 'reputation', who: 'addressee', audience: 'media', delta: -2 }],
         ai: { base: 0.3, traitModifiers: { 'trait.cautious': 0.3 } },
@@ -245,7 +250,7 @@ export const eventList: EventDefinition[] = [
     title: 'Government weighs a concession',
     body:
       'With the whips counting more rebels than the majority can comfortably absorb, Downing Street is ' +
-      'considering an amendment to the {bill}: a social-housing quota in every new development.',
+      'considering an amendment to the {bill}: a social-housing quota in every new development. Nobody will call it a U-turn.',
     audience: 'npc',
     trigger: { kind: 'forecast_rebellion', fractionOfMajority: 0.5, maxWeeksBeforeDivision: 2 },
     cooldownWeeks: 99,
@@ -255,7 +260,7 @@ export const eventList: EventDefinition[] = [
       {
         key: 'concede',
         label: 'Concede a social-housing quota',
-        description: 'Amend the bill to buy off the Heartlands.',
+        description: 'Amend the bill to buy off the Heartlands, and call it listening.',
         capitalCost: 0,
         effects: [
           { kind: 'amend_bill', issueKey: 'issue.social_housing', stance: 1 },
@@ -285,7 +290,7 @@ export const eventList: EventDefinition[] = [
       {
         key: 'hold_firm',
         label: 'Hold firm',
-        description: 'No concessions: the whips will deliver.',
+        description: 'No concessions: the whips will deliver, or know why not.',
         capitalCost: 0,
         effects: [
           {
@@ -310,8 +315,8 @@ export const eventList: EventDefinition[] = [
   },
   {
     key: 'event.minister_considers_position',
-    title: 'Minister considers her position',
-    body: 'After the defeat of the {bill}, {addressee} is said to be considering whether she can stay on as {office}.',
+    title: 'A minister considers their position',
+    body: 'After the defeat of the {bill}, {addressee} is said to be "considering their position" as {office}. Friends describe the mood as reflective; the removal van is on standby.',
     audience: 'npc',
     trigger: { kind: 'engine' },
     cooldownWeeks: 4,
@@ -321,7 +326,7 @@ export const eventList: EventDefinition[] = [
       {
         key: 'resign',
         label: 'Resign',
-        description: 'Take responsibility and return to the back benches.',
+        description: 'Take responsibility, write a gracious letter and return to the back benches.',
         capitalCost: 0,
         effects: [
           { kind: 'resign_office' },
@@ -335,7 +340,7 @@ export const eventList: EventDefinition[] = [
       {
         key: 'stay_on',
         label: 'Stay on',
-        description: 'Ride out the storm.',
+        description: 'Ride out the storm and hope the lobby finds someone else by Friday.',
         capitalCost: 0,
         effects: [{ kind: 'reputation', who: 'addressee', audience: 'media', delta: -5 }],
         ai: { base: 0.55, traitModifiers: { 'trait.cautious': 0.2, 'trait.loyalist': 0.2 } },
@@ -347,7 +352,7 @@ export const eventList: EventDefinition[] = [
     title: 'An offer from Downing Street',
     body:
       'The Prime Minister would like {addressee} to serve as {office}. It is the first rung of the ladder, ' +
-      'and it comes with collective responsibility: no more rebellions.',
+      'and it comes with a lanyard and collective responsibility: no more rebellions, and a great deal more nodding.',
     audience: 'player',
     trigger: { kind: 'engine' },
     cooldownWeeks: 0,
@@ -357,7 +362,7 @@ export const eventList: EventDefinition[] = [
       {
         key: 'accept',
         label: 'Accept',
-        description: 'Take the job.',
+        description: 'Take the job, the lanyard and the obligation to agree.',
         capitalCost: 0,
         effects: [
           { kind: 'accept_office' },
@@ -375,7 +380,8 @@ export const eventList: EventDefinition[] = [
       {
         key: 'decline',
         label: 'Decline',
-        description: 'Keep your freedom on the back benches.',
+        description:
+          'Keep your freedom on the back benches. Downing Street does not ask twice, often.',
         capitalCost: 0,
         effects: [
           { kind: 'decline_office' },

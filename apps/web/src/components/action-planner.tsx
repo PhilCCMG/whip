@@ -1,56 +1,41 @@
-import {
-  Badge,
-  Button,
-  cn,
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Input,
-  PartyChip,
-} from '@whip/ui';
-import { ArrowLeft, Check, Search } from 'lucide-react';
-import { useDeferredValue, useId, useState } from 'react';
+import { cn, CostChip, PartyChip, Portrait, Slash } from '@whip/ui';
+import { ArrowLeft, Lock, Search } from 'lucide-react';
+import { useDeferredValue, useId, useState, type ReactNode } from 'react';
 import { isApiError } from '../api/errors';
-import { useCampaignState, useCatalogue, usePlanAction, usePoliticianSearch } from '../api/hooks';
+import {
+  useCampaignState,
+  useCatalogue,
+  usePlanAction,
+  usePolitician,
+  usePoliticianSearch,
+} from '../api/hooks';
 import type { ActionCatalogueItem, ActionParam } from '../api/types';
+import { KIND_LABEL } from '../features/office/model';
+import { DispatchFrame } from '../game-ui/dispatch-frame';
 import { plural } from '../lib/format';
 import { toast } from '../stores/toast-store';
 import { useUiStore, type PlannerPrefill } from '../stores/ui-store';
 import { ErrorState, Loading } from './states';
 
-/** Actions answered elsewhere in the UI (pending event cards), not from the planner. */
+/** Actions answered elsewhere in the UI (dispatches on the desk), not from the planner. */
 const HIDDEN_KINDS = new Set(['respond_to_event']);
 
+/**
+ * The action planner: a game picker. Step one deals the catalogue as cards (locked ones show
+ * why); step two asks for targets, with MPs as a portrait grid.
+ */
 export function ActionPlanner({ campaignId }: { campaignId: string }) {
   const open = useUiStore((s) => s.plannerOpen);
   const prefill = useUiStore((s) => s.plannerPrefill);
   const close = useUiStore((s) => s.closePlanner);
+  if (!open) return null;
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && close()}>
-      <DialogContent className="max-w-2xl" aria-describedby={undefined}>
-        {open && (
-          <PlannerBody
-            key={JSON.stringify(prefill)}
-            campaignId={campaignId}
-            prefill={prefill}
-            onDone={close}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function CostChips({ item }: { item: Pick<ActionCatalogueItem, 'slots' | 'capitalCost'> }) {
-  return (
-    <span className="flex shrink-0 gap-1">
-      <Badge tone="outline">{item.slots === 0 ? 'No slot' : plural(item.slots, 'slot')}</Badge>
-      <Badge tone={item.capitalCost > 0 ? 'ink' : 'outline'}>{item.capitalCost} PC</Badge>
-    </span>
+    <PlannerBody
+      key={JSON.stringify(prefill)}
+      campaignId={campaignId}
+      prefill={prefill}
+      onDone={close}
+    />
   );
 }
 
@@ -61,6 +46,84 @@ function isRequired(p: ActionParam) {
 function isFilled(p: ActionParam, v: unknown) {
   if (p.type === 'politicians') return Array.isArray(v);
   return typeof v === 'string' && v.length > 0;
+}
+
+function Budget({ free, capital }: { free: number | undefined; capital: number | undefined }) {
+  if (free === undefined) return 'This week';
+  return `${plural(free, 'diary slot')} free · ${capital ?? 0} political capital`;
+}
+
+function ActionCard({
+  item,
+  capital,
+  free,
+  onChoose,
+}: {
+  item: ActionCatalogueItem;
+  capital: number;
+  free: number;
+  onChoose: () => void;
+}) {
+  const locked = !item.eligible;
+  return (
+    <button
+      type="button"
+      disabled={locked}
+      onClick={onChoose}
+      className={cn(
+        'group relative flex h-full w-full cursor-pointer flex-col gap-2 p-4 text-left',
+        'focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-whip',
+        locked
+          ? 'cursor-not-allowed bg-moss-900 text-paper/60 outline-1 -outline-offset-1 outline-paper/15'
+          : 'bg-paper-bright text-ink hover:bg-white hover:outline-3 hover:-outline-offset-3 hover:outline-ink',
+      )}
+    >
+      <span className="flex items-start justify-between gap-2">
+        <span className="flex min-w-0 flex-col-reverse">
+          {/* Title first in the DOM so the button is named by it; the kind sits above it visually. */}
+          <span className="mt-1.5 block font-display text-[1.45rem] leading-[0.92] font-black uppercase [font-stretch:70%]">
+            {item.label}
+          </span>
+          <span
+            className={cn(
+              'text-[11px] leading-none font-bold tracking-[0.08em] uppercase',
+              locked ? 'text-paper/55' : 'text-whip',
+            )}
+          >
+            {KIND_LABEL[item.kind]}
+          </span>
+        </span>
+        {locked ? (
+          <Lock aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+        ) : (
+          <Slash className="h-7 w-auto shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+        )}
+      </span>
+      <span className="text-[13px] leading-snug opacity-85">{item.description}</span>
+      {locked && item.reasons.length > 0 && (
+        <span className="text-[12.5px] leading-snug font-bold text-lamp">
+          <span className="sr-only">Locked: </span>
+          {item.reasons.join(' ')}
+        </span>
+      )}
+      <span className="mt-auto flex flex-wrap gap-1 pt-1">
+        <CostChip
+          kind="slots"
+          value={item.slots}
+          short={!locked && item.slots > free}
+          tone={locked ? 'paper' : 'ink'}
+          className={locked ? 'bg-paper/15 text-paper/70' : undefined}
+        />
+        <CostChip
+          kind="capital"
+          value={item.capitalCost}
+          short={!locked && item.capitalCost > capital}
+          tone={locked ? 'paper' : 'ink'}
+          className={locked ? 'bg-paper/15 text-paper/70' : undefined}
+        />
+      </span>
+    </button>
+  );
 }
 
 function PlannerBody({
@@ -82,12 +145,9 @@ function PlannerBody({
   const items = (catalogue.data?.items ?? []).filter((i) => !HIDDEN_KINDS.has(i.kind));
   const selected = items.find((i) => i.kind === kind) ?? null;
   const diary = state.data?.diary;
+  const free = diary ? diary.slotsTotal - diary.slotsUsed : undefined;
   const capital = state.data?.standing.politicalCapital;
 
-  const choose = (item: ActionCatalogueItem) => {
-    setKind(item.kind);
-    plan.reset();
-  };
   const back = () => {
     setKind(null);
     setParams({});
@@ -116,100 +176,53 @@ function PlannerBody({
     );
   };
 
-  const header = (
-    <DialogHeader>
-      <p className="text-xs font-semibold opacity-65">
-        {diary
-          ? `${plural(diary.slotsTotal - diary.slotsUsed, 'slot')} free this week · ${capital ?? 0} political capital`
-          : 'This week'}
-      </p>
-      <DialogTitle className="mt-1">{selected ? selected.label : 'Plan an action'}</DialogTitle>
-      {selected && <DialogDescription>{selected.description}</DialogDescription>}
-    </DialogHeader>
-  );
-
-  if (catalogue.isPending) {
-    return (
-      <>
-        {header}
-        <Loading label="Loading your options" />
-      </>
-    );
-  }
-  if (catalogue.isError) {
-    return (
-      <>
-        {header}
-        <DialogBody>
-          <ErrorState error={catalogue.error} onRetry={() => void catalogue.refetch()} />
-        </DialogBody>
-      </>
-    );
-  }
-
-  if (!selected) {
-    return (
-      <>
-        {header}
-        <DialogBody className="p-0">
-          <ul className="divide-y divide-border" aria-label="Available actions">
-            {items.map((item) => (
-              <li key={item.kind}>
-                <button
-                  type="button"
-                  disabled={!item.eligible}
-                  onClick={() => choose(item)}
-                  className={cn(
-                    'grid w-full cursor-pointer gap-1 px-5 py-3 text-left',
-                    'hover:bg-secondary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
-                    'disabled:cursor-not-allowed disabled:hover:bg-transparent',
-                  )}
-                >
-                  <span className="flex items-start justify-between gap-3">
-                    <span
-                      className={cn(
-                        'font-display text-lg leading-tight font-extrabold font-stretch-condensed',
-                        !item.eligible && 'opacity-45',
-                      )}
-                    >
-                      {item.label}
-                    </span>
-                    <CostChips item={item} />
-                  </span>
-                  <span
-                    className={cn(
-                      'text-[13px] leading-snug opacity-75',
-                      !item.eligible && 'opacity-45',
-                    )}
-                  >
-                    {item.description}
-                  </span>
-                  {!item.eligible && item.reasons.length > 0 && (
-                    <span className="text-xs font-semibold text-whip">
-                      {item.reasons.join(' ')}
-                    </span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </DialogBody>
-      </>
-    );
-  }
-
   const failure = plan.error;
-  return (
-    <>
-      {header}
-      <DialogBody className="grid gap-5">
+  let body;
+  if (catalogue.isPending)
+    body = <Loading label="Asking what you’re allowed to do" className="text-paper" />;
+  else if (catalogue.isError)
+    body = (
+      <div className="p-5">
+        <ErrorState
+          error={catalogue.error}
+          onRetry={() => void catalogue.refetch()}
+          className="bg-paper text-ink"
+        />
+      </div>
+    );
+  else if (!selected)
+    body = (
+      <ul
+        aria-label="Available actions"
+        className="grid gap-2 px-5 pb-5 sm:grid-cols-2 md:px-6 lg:grid-cols-3"
+      >
+        {[...items]
+          .sort((a, b) => Number(b.eligible) - Number(a.eligible))
+          .map((item) => (
+            <li key={item.kind}>
+              <ActionCard
+                item={item}
+                capital={capital ?? 0}
+                free={free ?? 0}
+                onChoose={() => {
+                  setKind(item.kind);
+                  plan.reset();
+                }}
+              />
+            </li>
+          ))}
+      </ul>
+    );
+  else
+    body = (
+      <div className="grid gap-6 px-5 pb-5 md:px-6">
         {!selected.eligible && (
-          <p role="alert" className="border-l-4 border-whip pl-3 text-sm">
+          <p role="alert" className="bg-whip px-3 py-2 text-sm font-semibold text-white">
             {selected.reasons.join(' ') || 'You can’t take this action right now.'}
           </p>
         )}
         {selected.params.length === 0 && (
-          <p className="text-sm opacity-70">No choices needed. Add it to your diary.</p>
+          <p className="text-sm text-paper/80">No choices needed. Add it to your diary.</p>
         )}
         {selected.params.map((p) => (
           <ParamField
@@ -225,36 +238,64 @@ function PlannerBody({
           />
         ))}
         {failure && (
-          <div role="alert" className="border-l-4 border-whip pl-3 text-sm">
-            <p className="font-semibold">
+          <div role="alert" className="bg-whip px-3 py-2 text-sm text-white">
+            <p className="font-bold">
               {isApiError(failure, 'ACTION_INELIGIBLE')
                 ? 'You can’t do that this week'
-                : 'Couldn’t add this to your diary'}
+                : 'It did not go as planned'}
             </p>
             {isApiError(failure) && failure.reasons.length > 0 ? (
-              <ul className="mt-1 list-disc pl-4 opacity-80">
+              <ul className="mt-1 list-disc pl-4">
                 {failure.reasons.map((r) => (
                   <li key={r}>{r}</li>
                 ))}
               </ul>
             ) : (
-              <p className="mt-0.5 opacity-80">{failure.message}</p>
+              <p className="mt-0.5">{failure.message}</p>
             )}
           </div>
         )}
-      </DialogBody>
-      <DialogFooter className="justify-between">
-        <Button variant="ghost" size="sm" onClick={back}>
-          <ArrowLeft /> All actions
-        </Button>
-        <div className="flex items-center gap-3">
-          <CostChips item={selected} />
-          <Button variant="whip" disabled={!ready || plan.isPending} onClick={submit}>
-            {plan.isPending ? 'Adding…' : 'Add to diary'}
-          </Button>
-        </div>
-      </DialogFooter>
-    </>
+      </div>
+    );
+
+  return (
+    <DispatchFrame
+      open
+      onOpenChange={(o) => !o && onDone()}
+      size="lg"
+      kicker={<Budget free={free} capital={capital} />}
+      title={selected ? selected.label : 'Plan an action'}
+      description={selected ? selected.description : undefined}
+      footer={
+        selected ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={back}
+              className="flex h-11 cursor-pointer items-center gap-2 px-2 text-[12px] font-bold tracking-[0.06em] text-paper/85 uppercase hover:text-paper-bright focus-visible:outline-2 focus-visible:outline-whip"
+            >
+              <ArrowLeft aria-hidden="true" className="size-4" /> All actions
+            </button>
+            <div className="flex items-center gap-3">
+              <span className="flex gap-1">
+                <CostChip kind="slots" value={selected.slots} tone="paper" />
+                <CostChip kind="capital" value={selected.capitalCost} tone="paper" />
+              </span>
+              <button
+                type="button"
+                disabled={!ready || plan.isPending}
+                onClick={submit}
+                className="h-12 min-w-44 cursor-pointer bg-whip px-6 font-display text-xl font-black text-white uppercase [font-stretch:72%] hover:bg-whip-dark focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-paper-bright disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {plan.isPending ? 'Adding…' : 'Add to diary'}
+              </button>
+            </div>
+          </div>
+        ) : undefined
+      }
+    >
+      {body}
+    </DispatchFrame>
   );
 }
 
@@ -274,6 +315,18 @@ function ParamField(props: ParamFieldProps) {
   return <OptionField {...props} />;
 }
 
+function FieldLabel({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) {
+  const Tag = htmlFor ? 'label' : 'span';
+  return (
+    <Tag
+      htmlFor={htmlFor}
+      className="mb-2 block text-[11px] font-bold tracking-[0.08em] text-paper/80 uppercase"
+    >
+      {children}
+    </Tag>
+  );
+}
+
 function OptionField({ param, value, onChange }: ParamFieldProps) {
   const name = useId();
   const options = param.options ?? [];
@@ -283,13 +336,15 @@ function OptionField({ param, value, onChange }: ParamFieldProps) {
   );
   return (
     <fieldset>
-      <legend className="mb-2 text-xs font-semibold opacity-70">{param.label}</legend>
+      <legend className="mb-2 text-[11px] font-bold tracking-[0.08em] text-paper/80 uppercase">
+        {param.label}
+      </legend>
       {options.length === 0 ? (
-        <p className="text-sm opacity-60">Nothing to choose from right now.</p>
+        <p className="text-sm text-paper/70">Nothing to choose from right now.</p>
       ) : (
         <div
           className={cn(
-            'grid gap-1.5',
+            'grid gap-2',
             options.length <= 3 && options.every((o) => o.label.length < 14)
               ? 'grid-cols-3'
               : 'sm:grid-cols-2',
@@ -301,11 +356,11 @@ function OptionField({ param, value, onChange }: ParamFieldProps) {
               <label
                 key={o.id}
                 className={cn(
-                  'flex cursor-pointer items-start gap-2.5 border px-3 py-2 text-sm',
-                  'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring',
+                  'flex cursor-pointer items-start gap-2.5 border-2 px-3 py-2.5',
+                  'has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-whip',
                   checked
-                    ? 'border-foreground bg-foreground text-background'
-                    : 'border-border hover:border-foreground/60',
+                    ? 'border-paper-bright bg-paper-bright text-ink'
+                    : 'border-paper/25 text-paper hover:border-paper/60',
                 )}
               >
                 <input
@@ -322,9 +377,12 @@ function OptionField({ param, value, onChange }: ParamFieldProps) {
                   }}
                   className="sr-only"
                 />
+                {checked && <Slash className="h-6 w-auto shrink-0" />}
                 <span className="min-w-0">
-                  <span className="block leading-tight font-semibold">{o.label}</span>
-                  {o.hint && <span className="mt-0.5 block text-xs opacity-70">{o.hint}</span>}
+                  <span className="block font-display text-lg leading-none font-black uppercase [font-stretch:72%]">
+                    {o.label}
+                  </span>
+                  {o.hint && <span className="mt-1 block text-xs opacity-75">{o.hint}</span>}
                 </span>
               </label>
             );
@@ -360,50 +418,49 @@ function PoliticianPicker({ campaignId, param, value, labels, onChange }: ParamF
 
   const rows = (results.data?.items ?? []).filter((p) => !p.isPlayer);
   return (
-    <div className="grid gap-2">
-      <label htmlFor={inputId} className="text-xs font-semibold opacity-70">
+    <div>
+      <FieldLabel htmlFor={inputId}>
         {param.label}
         {multi && ` (up to ${max}, optional)`}
-      </label>
+      </FieldLabel>
       {selectedIds.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5" aria-label="Selected">
+        <ul className="mb-2 flex flex-wrap gap-1.5" aria-label="Selected">
           {selectedIds.map((id) => (
-            <li key={id}>
-              <button
-                type="button"
-                onClick={() => toggle(id, labels[id] ?? id)}
-                className="inline-flex cursor-pointer items-center gap-1.5 bg-foreground px-2 py-1 text-xs font-semibold text-background focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-                aria-label={`Remove ${labels[id] ?? id}`}
-              >
-                {labels[id] ?? id} <span aria-hidden="true">×</span>
-              </button>
-            </li>
+            <SelectedTarget
+              key={id}
+              campaignId={campaignId}
+              id={id}
+              known={labels[id] ?? param.options?.find((o) => o.id === id)?.label}
+              onRemove={(name) => toggle(id, name)}
+            />
           ))}
         </ul>
       )}
       <div className="relative">
         <Search
           aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 opacity-50"
+          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink/60"
         />
-        <Input
+        <input
           id={inputId}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search MPs by name"
-          className="pl-9"
+          placeholder="Search Members by name"
           autoComplete="off"
+          className="h-11 w-full bg-paper-bright pr-3 pl-9 text-[15px] text-ink outline-none placeholder:text-ink/50 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-whip"
         />
       </div>
       <ul
-        className="max-h-60 divide-y divide-border overflow-y-auto border border-border"
+        className="mt-3 grid max-h-[22rem] grid-cols-2 gap-2 overflow-y-auto scrollbar-thin sm:grid-cols-3 lg:grid-cols-4"
         aria-label="Search results"
         aria-busy={results.isFetching}
       >
         {results.isPending ? (
-          <li className="px-3 py-2 text-sm opacity-60">Searching…</li>
+          <li className="col-span-full py-3 text-sm text-paper/70">Searching…</li>
         ) : rows.length === 0 ? (
-          <li className="px-3 py-2 text-sm opacity-60">No MPs match “{deferred}”.</li>
+          <li className="col-span-full py-3 text-sm text-paper/70">
+            No Member answers to “{deferred}”.
+          </li>
         ) : (
           rows.map((p) => {
             const checked = selectedIds.includes(p.id);
@@ -414,32 +471,28 @@ function PoliticianPicker({ campaignId, param, value, labels, onChange }: ParamF
                   aria-pressed={checked}
                   onClick={() => toggle(p.id, p.name)}
                   className={cn(
-                    'flex w-full cursor-pointer items-center justify-between gap-3 px-3 py-2 text-left text-sm',
-                    'hover:bg-secondary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
-                    checked && 'bg-secondary',
+                    'flex h-full w-full cursor-pointer items-start gap-2.5 p-2 text-left',
+                    'focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-whip',
+                    checked
+                      ? 'bg-paper-bright text-ink'
+                      : 'bg-moss-900 text-paper hover:bg-moss-800',
                   )}
                 >
-                  <span className="min-w-0">
-                    <span className="block truncate font-semibold">{p.name}</span>
-                    <span className="block truncate text-xs opacity-65">
+                  <Portrait seed={p.id} partyColour={p.partyColour} size="md" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-display text-[1.05rem] leading-[0.95] font-black uppercase [font-stretch:72%]">
+                      {p.name}
+                    </span>
+                    <PartyChip
+                      colour={p.partyColour}
+                      label={p.partyShort ?? 'Ind'}
+                      className="mt-1"
+                    />
+                    <span className="mt-0.5 block truncate text-[11px] opacity-75">
                       {p.offices[0] ?? p.constituencyName ?? ''}
-                      {p.factionName ? ` · ${p.factionName}` : ''}
                     </span>
                   </span>
-                  <span className="flex shrink-0 items-center gap-2">
-                    <PartyChip colour={p.partyColour} label={p.partyShort ?? 'Ind'} />
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        'inline-flex size-5 items-center justify-center border',
-                        checked
-                          ? 'border-foreground bg-foreground text-background'
-                          : 'border-border',
-                      )}
-                    >
-                      {checked && <Check className="size-3.5" />}
-                    </span>
-                  </span>
+                  {checked && <Slash className="h-6 w-auto shrink-0" />}
                 </button>
               </li>
             );
@@ -447,5 +500,51 @@ function PoliticianPicker({ campaignId, param, value, labels, onChange }: ParamF
         )}
       </ul>
     </div>
+  );
+}
+
+/**
+ * A chosen target, shown above the results whatever the current search page holds (a target
+ * prefilled from a dossier may not be among the first results). The name comes from the
+ * prefill labels or the param's options; the profile (usually cached) supplies the rest.
+ */
+function SelectedTarget({
+  campaignId,
+  id,
+  known,
+  onRemove,
+}: {
+  campaignId: string;
+  id: string;
+  known: string | undefined;
+  onRemove: (name: string) => void;
+}) {
+  const profile = usePolitician(campaignId, id);
+  const name = known ?? profile.data?.name ?? 'Consulting the whips…';
+  const detail = profile.data
+    ? [profile.data.partyShort, profile.data.offices[0] ?? profile.data.constituencyName]
+        .filter(Boolean)
+        .join(' · ')
+    : null;
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onRemove(name)}
+        className="inline-flex cursor-pointer items-center gap-2 bg-paper-bright py-1 pr-2 pl-1 text-left text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-whip"
+        aria-label={`Remove ${name}`}
+      >
+        <Portrait seed={id} partyColour={profile.data?.partyColour} size="sm" />
+        <span className="min-w-0">
+          <span className="block font-display text-[1rem] leading-[0.95] font-black uppercase [font-stretch:72%]">
+            {name}
+          </span>
+          {detail && <span className="block text-[11px] text-ink/70">{detail}</span>}
+        </span>
+        <span aria-hidden="true" className="ml-1 text-sm font-bold">
+          ×
+        </span>
+      </button>
+    </li>
   );
 }

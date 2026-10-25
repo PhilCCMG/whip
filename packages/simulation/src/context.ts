@@ -7,6 +7,7 @@ import type {
   Headline,
   HistoryRecord,
   IntelItem,
+  NewspaperEdition,
   Notification,
   PartyId,
   PoliticianId,
@@ -18,7 +19,7 @@ import type {
 /** Rules version. Bump deliberately when rule changes alter outcomes; re-record golden fixtures. */
 export const SIMULATION_VERSION = 1;
 /** Shape version of GameState (save compatibility; see state/migrations.ts). */
-export const STATE_SCHEMA_VERSION = 2;
+export const STATE_SCHEMA_VERSION = 3;
 
 export const PHASE_KEYS = [
   'begin_turn',
@@ -97,8 +98,10 @@ export interface SimulationResult {
   actionOutcomes: ActionOutcome[];
   /** Event instances raised this turn. */
   events: EventInstance[];
-  /** Weekly briefing (also stored in state.briefing). */
+  /** Weekly briefing headlines, derived from the newspaper's lead and politics column. */
   headlines: Headline[];
+  /** The week's newspaper edition (also stored in state.briefing.newspaper). */
+  newspaper: NewspaperEdition;
   divisions: DivisionReport[];
   /** Intelligence items the player learned this turn. */
   intelligence: IntelItem[];

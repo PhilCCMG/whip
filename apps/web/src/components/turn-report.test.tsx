@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { CAMPAIGN_ID, turnReportFixture } from '../mocks/fixtures';
+import { newspaperFixture } from '../mocks/newspaper-fixture';
 import { renderApp } from '../test/render-app';
 import { TurnReportContent } from './turn-report';
 
@@ -31,5 +32,49 @@ describe('TurnReportContent', () => {
       expect(within(article).getByRole('link', { name: r.name })).toBeInTheDocument();
     }
     expect(within(article).getByRole('table', { name: 'Votes by party' })).toBeInTheDocument();
+  });
+});
+
+describe('TurnReportContent as a newspaper', () => {
+  it('prints the edition’s masthead and sections, with your week stamped alongside', async () => {
+    const newspaper = newspaperFixture; // The Daily Clarion, division week
+    renderApp('/', [
+      {
+        path: '/',
+        element: (
+          <TurnReportContent
+            report={{ ...turnReportFixture, newspaper }}
+            campaignId={CAMPAIGN_ID}
+          />
+        ),
+      },
+    ]);
+    expect(await screen.findByRole('heading', { name: 'The Daily Clarion' })).toBeInTheDocument();
+    expect(screen.getByText(newspaper.masthead.slogan)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: newspaper.lead.headline })).toBeInTheDocument();
+    for (const section of newspaper.sections) {
+      if (section.articles.length === 0) continue;
+      expect(screen.getByRole('heading', { name: section.title })).toBeInTheDocument();
+    }
+    // The mechanics stay legible next to the spin: outcomes stamped, capital change shown.
+    const yourWeek = screen.getByRole('region', { name: 'Your week' });
+    expect(within(yourWeek).getAllByText('Success')).toHaveLength(2);
+    expect(within(yourWeek).getByText('Partial')).toBeInTheDocument();
+    expect(
+      within(yourWeek).getByRole('group', { name: /Political capital \+1/ }),
+    ).toBeInTheDocument();
+  });
+
+  it('falls back to the plain headlines when there is no paper', async () => {
+    renderApp('/', [
+      {
+        path: '/',
+        element: <TurnReportContent report={turnReportFixture} campaignId={CAMPAIGN_ID} />,
+      },
+    ]);
+    expect(await screen.findByRole('heading', { name: 'The Morning Whip' })).toBeInTheDocument();
+    for (const h of turnReportFixture.headlines) {
+      expect(screen.getByRole('heading', { name: h.text })).toBeInTheDocument();
+    }
   });
 });

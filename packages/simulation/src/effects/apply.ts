@@ -257,7 +257,10 @@ function vacate(
         severity: 'critical',
         title:
           reason === 'resigned' ? `You resigned as ${label}` : `You have been sacked as ${label}`,
-        body: note,
+        body:
+          reason === 'resigned'
+            ? `${note}. The back benches have kept your seat warm.`
+            : `${note}. Someone else already has your lanyard.`,
         link: { kind: 'politician', id: holderId },
       });
     }
@@ -322,14 +325,14 @@ function appoint(
     tc.notify(draft, {
       severity: 'good',
       title: `You are now ${label}`,
-      body: reasonText,
+      body: `${reasonText}. Congratulations, and welcome to collective responsibility.`,
       link: { kind: 'politician', id: pid },
     });
   } else if (importance >= 3 || def?.kind === 'pps') {
     tc.notify(draft, {
       severity: 'info',
       title: `${displayName(p)} appointed ${label}`,
-      body: reasonText,
+      body: `${reasonText}. Colleagues offered warm congratulations and cold assessments.`,
       link: { kind: 'politician', id: pid },
     });
   }
@@ -497,7 +500,7 @@ function applyInner(draft: GameState, e: Effect, tc: TurnContext, effectId: stri
       if (draft.careers.promotionRequests.some((r) => r.politicianId === e.politicianId)) return [];
       draft.careers.promotionRequests.push({ politicianId: e.politicianId, turn: tc.turn });
       draft.careers.lastPromotionRequestTurn[e.politicianId] = tc.turn;
-      return ['Promotion request lodged with the whips'];
+      return ['Promotion request lodged with the whips, who will "bear it in mind"'];
     }
 
     case 'career.call_reshuffle':
@@ -628,7 +631,7 @@ function raiseEvent(
     tc.notify(draft, {
       severity: 'warning',
       title: def.title,
-      body: 'A decision is waiting for you.',
+      body: 'A decision is waiting for you. It will not wait long.',
       link: { kind: 'event', id },
     });
   }
@@ -691,7 +694,7 @@ function checkPromise(
         : `${nameOf(draft, e.promiseeId)} will not forget your broken promise`,
       body: kept
         ? 'Trust earned is trust banked.'
-        : `You promised to vote ${VOTE_LABEL[e.vote]} and did not.`,
+        : `You promised to vote ${VOTE_LABEL[e.vote]} and did not. They have a long memory and a short list.`,
       link: { kind: 'politician', id: e.promiseeId },
     });
   }

@@ -49,6 +49,11 @@ import {
   turnReportFixture,
   upcomingFor,
 } from './fixtures';
+import {
+  newspaperFixture,
+  openingNewspaperFixture,
+  quietNewspaperFixture,
+} from './newspaper-fixture';
 import type {
   ActionOutcome,
   DivisionResult,
@@ -216,7 +221,27 @@ export function createMockBackend(options: { latencyMs?: number } = {}): MockBac
   }
 
   function overview(w: MockWorld) {
-    return { campaign: w.summary, ...w.overview };
+    const { briefing } = w.overview;
+    // Mock mode prints a paper for every briefing (the API sends one when it has generated it).
+    const newspaper = briefing.newspaper ?? mockPaper('opening', w.summary.simDate);
+    return { campaign: w.summary, ...w.overview, briefing: { ...briefing, newspaper } };
+  }
+
+  /**
+   * Mock mode's papers: engine-generated editions (newspaper-fixture.ts), dated to the mock's
+   * calendar. The opening edition until a week resolves; then the division edition for the week
+   * of a division and the quiet one otherwise.
+   */
+  function mockPaper(kind: 'opening' | 'division' | 'quiet', date: string) {
+    const base =
+      kind === 'opening'
+        ? openingNewspaperFixture
+        : kind === 'division'
+          ? newspaperFixture
+          : quietNewspaperFixture;
+    const paper = structuredClone(base);
+    paper.masthead = { ...paper.masthead, date };
+    return paper;
   }
 
   function bumpRev(w: MockWorld) {
@@ -891,7 +916,8 @@ export function createMockBackend(options: { latencyMs?: number } = {}): MockBac
     bumpRev(w);
     w.overview.diary = { slotsTotal: 5, slotsUsed: 0, planned: [] };
     const headlines = headlinesFor(resolvingTurn, w, outcomes, division);
-    w.overview.briefing = { turn: nextTurn, headlines };
+    const newspaper = mockPaper(division ? 'division' : 'quiet', resolvedSimDate);
+    w.overview.briefing = { turn: nextTurn, headlines, newspaper };
     w.overview.upcoming = upcomingFor(
       w.summary.simDate,
       w.parliament.upcomingDivisions.some((d) => d.id === HDB_2R_DIVISION_ID),
@@ -907,6 +933,7 @@ export function createMockBackend(options: { latencyMs?: number } = {}): MockBac
       nextTurn,
       nextSimDate: w.summary.simDate,
       headlines,
+      newspaper,
       actionOutcomes: outcomes,
       divisions: division ? [division] : [],
       notifications: newNotifications,

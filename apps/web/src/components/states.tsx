@@ -33,7 +33,7 @@ export function ErrorState({
       : 'Something went wrong.';
   return (
     <div role="alert" className={cn('border-l-4 border-whip px-4 py-3 text-sm', className)}>
-      <p className="font-semibold">Couldn’t load this</p>
+      <p className="font-semibold">Something has gone wrong. A review has been ordered.</p>
       <p className="mt-0.5 opacity-75">{message}</p>
       {onRetry && (
         <Button variant="outline" size="sm" className="mt-2" onClick={onRetry}>

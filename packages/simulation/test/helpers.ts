@@ -69,3 +69,50 @@ export function deepFreeze<T>(value: T): T {
 export function env(name: string): string | undefined {
   return process.env[name];
 }
+
+/** A fixed six-week script touching most action kinds. */
+export function goldenScript(turn: number, s: GameState): ActionRequest[] {
+  const pending = s.events.pending.find((e) => e.addresseeId === s.player.politicianId);
+  const respond: ActionRequest[] = pending
+    ? [
+        {
+          kind: 'respond_to_event',
+          params: {
+            eventId: pending.id,
+            optionKey: ctx.content.events[pending.definitionKey]!.defaultOptionKey,
+          },
+        },
+      ]
+    : [];
+  switch (turn) {
+    case 1:
+      return [
+        { kind: 'meet_politician', params: { targetId: 'pol_bernadette_walsh' } },
+        { kind: 'seek_endorsement', params: { targetId: 'pol_ken_bramley' } },
+        {
+          kind: 'support_legislation',
+          params: { billId: BILL, lobbyTargetIds: ['pol_tom_fairley'] },
+        },
+      ];
+    case 2:
+      return [
+        ...respond,
+        { kind: 'build_relationship', params: { targetId: 'pol_gareth_pryce' } },
+        { kind: 'meet_politician', params: { targetId: 'pol_daniel_osei' } },
+      ];
+    case 3:
+      return [
+        ...respond,
+        {
+          kind: 'make_political_promise',
+          params: { targetId: 'pol_priya_nair', divisionId: 'div.hdb_second_reading', vote: 'aye' },
+        },
+      ];
+    default:
+      return [
+        ...respond,
+        { kind: 'request_promotion', params: {} },
+        { kind: 'meet_politician', params: { targetId: 'pol_sarah_kemp' } },
+      ];
+  }
+}

@@ -26,6 +26,9 @@ import type { ActionKind } from '@whip/contracts';
 import type { z } from 'zod';
 
 export type {
+  Article,
+  Newspaper,
+  NewspaperSectionKey,
   ActionKind,
   CampaignSummary,
   CareerOverview,

@@ -1,6 +1,5 @@
 import {
   ContentRegistrySchema,
-  HEADLINE_TEMPLATE_KEYS,
   HISTORY_TEMPLATE_KEYS,
   NATIONS,
   ScenarioDefinitionSchema,
@@ -55,8 +54,6 @@ describe('content registry', () => {
 
   it('provides every template key', () => {
     for (const k of HISTORY_TEMPLATE_KEYS) expect(content.templates.history[k]).toBeDefined();
-    for (const k of HEADLINE_TEMPLATE_KEYS)
-      expect(content.templates.headlines[k].length).toBeGreaterThan(0);
   });
 
   it('has trait exclusions that reference real traits', () => {

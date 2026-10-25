@@ -118,6 +118,8 @@ export function advanceSimulation(
     if (clock) timings[key] = clock() - t0;
   }
   const headlines = draft.briefing.headlines;
+  const newspaper = draft.briefing.newspaper;
+  if (!newspaper) throw new Error('The chronicle phase did not produce a newspaper');
 
   if (ctx.options?.checkInvariants) {
     const violations = checkInvariants(draft, ctx);
@@ -133,6 +135,7 @@ export function advanceSimulation(
     actionOutcomes: tc.actionOutcomes,
     events: tc.raisedEvents,
     headlines,
+    newspaper,
     divisions: tc.divisionsHeld.map((id) => divisionReport(draft, id)),
     intelligence: tc.intel,
     capitalChange: me.politicalCapital - tc.playerCapitalStart,

@@ -1,5 +1,5 @@
 import { cn } from '@whip/ui';
-import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useId, useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { useSettingsStore } from '../../../stores/settings-store';
 import { uiSound } from '../../audio/use-ui-sound';
 import { DOWN_KEYS, UP_KEYS, useBackKey } from '../keys';
@@ -102,7 +102,9 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
   const bodyRef = useRef<HTMLDivElement>(null);
   useBackKey(onBack);
 
-  useEffect(() => {
+  // Initial focus in a layout effect: it lands in the commit that mounts the screen, so it can't
+  // run late (as a passive effect can) and pull focus back after the player has already moved it.
+  useLayoutEffect(() => {
     bodyRef.current?.querySelector<HTMLElement>(ROW_FOCUS)?.focus();
   }, []);
 

@@ -1,59 +1,109 @@
 import {
-  Badge,
-  Button,
+  CapitalIcon,
   cn,
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Headline,
-  SectionLabel,
+  DisplayTitle,
+  Keycap,
+  Kicker,
+  ResourceCounter,
+  ReturnKeyIcon,
+  Stamp,
 } from '@whip/ui';
+import { useRef } from 'react';
 import type { ActionOutcome, TurnReport } from '../api/types';
-import { formatSimDate, sequence, signed } from '../lib/format';
-import { DivisionResultView } from './division-result';
+import { NewspaperPage } from '../features/newspaper/newspaper';
+import { paperFromHeadlines } from '../features/newspaper/paper-style';
+import { KIND_LABEL } from '../features/office/model';
+import { DispatchFrame, DispatchTitle } from '../game-ui/dispatch-frame';
+import { DivisionTally } from '../game-ui/division-tally';
+import { formatSimDate, signed } from '../lib/format';
 
-const statusTone = {
-  succeeded: 'good',
-  partial: 'warning',
-  failed: 'critical',
-  rejected: 'critical',
-} as const;
-
-const statusText = {
-  succeeded: 'Succeeded',
-  partial: 'Partly worked',
-  failed: 'Failed',
-  rejected: 'Not allowed',
-} as const;
+const STAMP: Record<ActionOutcome['status'], { text: string; tone: 'good' | 'warning' | 'bad' }> = {
+  succeeded: { text: 'Success', tone: 'good' },
+  partial: { text: 'Partial', tone: 'warning' },
+  failed: { text: 'Failed', tone: 'bad' },
+  rejected: { text: 'Refused', tone: 'bad' },
+};
 
 function effectTone(line: string) {
   if (/[+]\d/.test(line)) return 'text-good-strong';
-  if (/[−-]\d/.test(line)) return 'text-whip';
-  return '';
+  if (/[−-]\d/.test(line)) return 'text-whip-dark';
+  return 'text-ink/80';
 }
 
-function Outcome({ outcome }: { outcome: ActionOutcome }) {
+/** One action's result, stamped. The stamps land one after another. */
+function Outcome({ outcome, index }: { outcome: ActionOutcome; index: number }) {
+  const stamp = STAMP[outcome.status];
   return (
-    <li className="grid gap-1 border-b border-border py-3 last:border-b-0">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h4 className="font-semibold">{outcome.label}</h4>
-        <Badge tone={statusTone[outcome.status]}>{statusText[outcome.status]}</Badge>
+    <li className="relative grid gap-1.5 border-t border-ink/30 py-3 first:border-t-0 first:pt-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col-reverse">
+          <h4 className="mt-1 font-display text-[1.15rem] leading-[0.95] font-black uppercase [font-stretch:72%]">
+            {outcome.label}
+          </h4>
+          <span className="text-[10px] leading-none font-bold tracking-[0.08em] text-ink/65 uppercase">
+            {KIND_LABEL[outcome.kind]}
+          </span>
+        </div>
+        <Stamp
+          tone={stamp.tone}
+          size="sm"
+          angle={index % 2 ? 4 : -5}
+          className="shrink-0 animate-stamp"
+          style={{ animationDelay: `${300 + index * 260}ms` }}
+        >
+          {stamp.text}
+        </Stamp>
       </div>
-      <p className="text-sm opacity-80">{outcome.summary}</p>
+      <p className="text-[13px] leading-snug text-ink/85">{outcome.summary}</p>
       {outcome.effects.length > 0 && (
-        <ul className="mt-0.5 grid gap-x-4 text-xs sm:grid-cols-2">
+        <ul className="grid gap-0.5 text-[12px]">
           {outcome.effects.map((e) => (
-            <li key={e} className={cn('font-medium tabular', effectTone(e))}>
+            <li key={e} className={cn('font-semibold tabular-nums', effectTone(e))}>
               {e}
             </li>
           ))}
         </ul>
       )}
     </li>
+  );
+}
+
+/**
+ * "Your week": the player's results as a boxed insert in the paper's narrow column. The
+ * mechanics (stamped outcomes, the capital change) stay plain whatever the paper says.
+ */
+function YourWeek({ report }: { report: TurnReport }) {
+  return (
+    <section
+      aria-labelledby="tr-actions"
+      className="bg-paper-bright p-3 text-ink outline-2 -outline-offset-2 outline-ink"
+    >
+      <div className="-mx-3 -mt-3 mb-3 flex items-center justify-between gap-3 bg-ink px-3 py-2 text-paper-bright">
+        <h3
+          id="tr-actions"
+          className="font-display text-[1.35rem] leading-none font-black uppercase [font-stretch:68%]"
+        >
+          Your week
+        </h3>
+        <ResourceCounter
+          size="sm"
+          label="Capital"
+          value={signed(report.capitalChange)}
+          icon={<CapitalIcon className="text-lamp" />}
+          aria-label={`Political capital ${signed(report.capitalChange)} this week`}
+          role="group"
+        />
+      </div>
+      {report.actionOutcomes.length === 0 ? (
+        <p className="text-[13px] text-ink/80">You planned nothing this week. Nobody noticed.</p>
+      ) : (
+        <ul>
+          {report.actionOutcomes.map((o, i) => (
+            <Outcome key={o.plannedActionId ?? `${o.kind}-${i}`} outcome={o} index={i} />
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -65,72 +115,46 @@ export function TurnReportContent({
   report: TurnReport;
   campaignId: string;
 }) {
-  const [lead, ...rest] = [...report.headlines].sort((a, b) => b.importance - a.importance);
-  const next = sequence();
+  const paper =
+    report.newspaper ?? paperFromHeadlines(report.headlines, report.simDate, report.turn);
   return (
-    <div className="grid gap-7">
-      {lead && (
-        <section aria-label="Headlines" className="grid gap-4">
-          <Headline
-            as="h3"
-            text={lead.text}
-            standfirst={lead.standfirst}
-            importance={lead.importance}
-          />
-          {rest.length > 0 && (
-            <div className="grid gap-4 border-t border-foreground pt-3 sm:grid-cols-2">
-              {rest.map((h) => (
-                <Headline
-                  key={h.text}
-                  as="h4"
-                  text={h.text}
-                  standfirst={h.standfirst}
-                  importance={Math.min(h.importance, 3)}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+    <div className="grid gap-6">
+      <header className="text-paper-bright">
+        <DisplayTitle as="h2" size="xl" slash>
+          The week in Westminster
+        </DisplayTitle>
+        <Kicker className="mt-3 text-paper/80">
+          Week {report.turn} · w/c {formatSimDate(report.simDate)} · Week {report.nextTurn} begins{' '}
+          {formatSimDate(report.nextSimDate)}
+        </Kicker>
+      </header>
+
+      <NewspaperPage paper={paper} campaignId={campaignId} insert={<YourWeek report={report} />} />
 
       {report.divisions.length > 0 && (
-        <section aria-labelledby="tr-divisions">
-          <SectionLabel id="tr-divisions" as="h3" number={next()} className="mb-3">
-            {report.divisions.length === 1 ? 'The division' : 'Divisions'}
-          </SectionLabel>
-          <div className="grid gap-6">
-            {report.divisions.map((d) => (
-              <DivisionResultView key={d.id} division={d} campaignId={campaignId} />
-            ))}
-          </div>
+        <section
+          aria-label={report.divisions.length === 1 ? 'The division' : 'Divisions'}
+          className="grid gap-6"
+        >
+          {report.divisions.map((d) => (
+            <DivisionTally key={d.id} division={d} campaignId={campaignId} />
+          ))}
         </section>
       )}
-
-      <section aria-labelledby="tr-actions">
-        <SectionLabel id="tr-actions" as="h3" number={next()} className="mb-1">
-          Your week
-        </SectionLabel>
-        {report.actionOutcomes.length === 0 ? (
-          <p className="py-2 text-sm opacity-65">You planned nothing this week.</p>
-        ) : (
-          <ul>
-            {report.actionOutcomes.map((o, i) => (
-              <Outcome key={o.plannedActionId ?? `${o.kind}-${i}`} outcome={o} />
-            ))}
-          </ul>
-        )}
-      </section>
 
       {report.notifications.length > 0 && (
         <section aria-labelledby="tr-notes">
-          <SectionLabel id="tr-notes" as="h3" number={next()} className="mb-2">
-            Also this week
-          </SectionLabel>
-          <ul className="grid gap-2">
+          <h3
+            id="tr-notes"
+            className="mb-3 font-display text-[1.4rem] leading-none font-black text-paper-bright uppercase [font-stretch:68%]"
+          >
+            Also on the wires
+          </h3>
+          <ul className="grid gap-2 md:grid-cols-3">
             {report.notifications.map((note) => (
-              <li key={note.id} className="border-l-[3px] border-current/30 pl-3 text-sm">
-                <span className="font-semibold">{note.title}.</span>{' '}
-                <span className="opacity-75">{note.body}</span>
+              <li key={note.id} className="bg-paper-deep px-3 py-2.5 text-ink">
+                <p className="text-[13px] font-bold">{note.title}</p>
+                <p className="mt-0.5 text-[12.5px] leading-snug text-ink/80">{note.body}</p>
               </li>
             ))}
           </ul>
@@ -140,6 +164,10 @@ export function TurnReportContent({
   );
 }
 
+/**
+ * THE WEEK IN WESTMINSTER: a full-screen results takeover after END WEEK. Continue (Enter, or
+ * Esc) returns to the office for the new week.
+ */
 export function TurnReportDialog({
   report,
   campaignId,
@@ -151,29 +179,60 @@ export function TurnReportDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const continueRef = useRef<HTMLButtonElement>(null);
   if (!report) return null;
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader className="bg-ink pb-4 text-paper">
-          <p className="text-xs font-semibold text-paper/65">
-            Week {report.turn} · w/c {formatSimDate(report.simDate)}
+    <DispatchFrame
+      open={open}
+      onOpenChange={onOpenChange}
+      size="full"
+      tone="desk"
+      title="The week in Westminster"
+      initialFocus={continueRef}
+      header={
+        <div className="flex h-12 shrink-0 items-center justify-between gap-4 bg-ink px-4 md:px-6">
+          <DispatchTitle className="font-display text-xl leading-none font-black text-paper-bright uppercase [font-stretch:70%]">
+            <span className="sr-only">The week in Westminster: results for week {report.turn}</span>
+            <span aria-hidden="true">
+              Results <span className="text-paper/60">· week {report.turn}</span>
+            </span>
+          </DispatchTitle>
+          <ResourceCounter
+            size="sm"
+            label="Capital"
+            value={signed(report.capitalChange)}
+            icon={<CapitalIcon className="text-lamp" />}
+            aria-label={`Political capital ${signed(report.capitalChange)} this week`}
+            role="group"
+            className="text-paper-bright"
+          />
+        </div>
+      }
+      footer={
+        <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-2">
+          <p className="text-[12px] font-bold tracking-[0.06em] text-paper/80 uppercase max-sm:hidden">
+            Week {report.nextTurn} · {formatSimDate(report.nextSimDate)}
           </p>
-          <DialogTitle className="mt-1 text-4xl sm:text-5xl">The week in Westminster</DialogTitle>
-          <DialogDescription className="text-paper/75">
-            Political capital {signed(report.capitalChange)} · Week {report.nextTurn} begins{' '}
-            {formatSimDate(report.nextSimDate)}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogBody>
-          <TurnReportContent report={report} campaignId={campaignId} />
-        </DialogBody>
-        <DialogFooter>
-          <Button variant="whip" onClick={() => onOpenChange(false)}>
-            Start week {report.nextTurn}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <button
+            ref={continueRef}
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="flex h-14 cursor-pointer items-center gap-4 bg-whip pr-5 pl-7 font-display text-[1.75rem] leading-none font-black text-white uppercase [font-stretch:68%] [clip-path:polygon(0.9rem_0,100%_0,100%_100%,0_100%)] hover:bg-whip-dark focus-visible:outline-3 focus-visible:-outline-offset-6 focus-visible:outline-paper-bright max-sm:w-full max-sm:justify-center"
+          >
+            Continue to week {report.nextTurn}
+            <Keycap
+              aria-hidden="true"
+              className="h-7 gap-1 border-white/80 bg-transparent px-2 text-white"
+            >
+              <ReturnKeyIcon />
+            </Keycap>
+          </button>
+        </div>
+      }
+    >
+      <div className="mx-auto w-full max-w-[78rem] px-3 py-5 md:px-8 md:py-8">
+        <TurnReportContent report={report} campaignId={campaignId} />
+      </div>
+    </DispatchFrame>
   );
 }

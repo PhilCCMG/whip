@@ -1,7 +1,9 @@
 import type {
+  Article,
   CampaignSummary,
   CareerOverview,
   DivisionResult,
+  Newspaper,
   ParliamentView,
   PartyView,
   PoliticianProfile,
@@ -14,6 +16,8 @@ import type {
   Headline,
   HistoryRecord,
   MemoryKind,
+  NewsArticle,
+  NewspaperEdition,
   Notification,
   PartyId,
   PlannedAction,
@@ -120,6 +124,32 @@ function headline(h: Headline) {
     text: h.text,
     importance: h.importance,
     ...(h.standfirst ? { standfirst: h.standfirst } : {}),
+  };
+}
+
+function article(a: NewsArticle): Article {
+  return {
+    id: a.id,
+    headline: a.headline,
+    ...(a.standfirst !== null ? { standfirst: a.standfirst } : {}),
+    ...(a.byline !== null ? { byline: a.byline } : {}),
+    ...(a.body !== null ? { body: a.body } : {}),
+    importance: a.importance,
+    filler: a.filler,
+    refs: a.refs.map((r) => ({ kind: r.kind, id: r.id })),
+  };
+}
+
+/** Engine edition → contracts' Newspaper (nulls become absent optional fields). */
+function newspaper(e: NewspaperEdition): Newspaper {
+  return {
+    masthead: { ...e.masthead },
+    lead: article(e.lead),
+    sections: e.sections.map((s) => ({
+      key: s.key,
+      title: s.title,
+      articles: s.articles.map(article),
+    })),
   };
 }
 
@@ -408,7 +438,11 @@ function careerOverview(state: GameState, campaign: CampaignSummary): CareerOver
       options: e.options,
     })),
     notifications: state.inbox.slice(-MAX_NOTIFICATIONS).reverse().map(notification),
-    briefing: { turn: state.briefing.turn, headlines: state.briefing.headlines.map(headline) },
+    briefing: {
+      turn: state.briefing.turn,
+      headlines: state.briefing.headlines.map(headline),
+      ...(state.briefing.newspaper ? { newspaper: newspaper(state.briefing.newspaper) } : {}),
+    },
     upcoming: selectors.upcoming(state),
     intelligence: selectors
       .intelligence(state)
@@ -591,6 +625,7 @@ function turnReport(input: {
     divisions: result.divisions.map(divisionDto),
     notifications: result.notifications.map(notification),
     capitalChange: result.capitalChange,
+    newspaper: newspaper(result.newspaper),
   };
 }
 

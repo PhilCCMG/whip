@@ -42,3 +42,30 @@ export { VoteBar, type VoteBarProps } from './components/vote-bar';
 export { WhipIcon, WhipWordmark } from './components/brand';
 export { Keycap, type KeycapProps } from './components/keycap';
 export { ReturnKeyIcon } from './components/key-glyphs';
+export {
+  Portrait,
+  portraitFeatures,
+  PORTRAIT_SIZES,
+  type PortraitProps,
+  type PortraitSize,
+  type PortraitFeatures,
+} from './components/portrait';
+export {
+  Slash,
+  Plate,
+  Kicker,
+  DisplayTitle,
+  PaperSheet,
+  Stamp,
+  ResourceCounter,
+  CapitalIcon,
+  CostChip,
+  PipMeter,
+  type PlateProps,
+  type DisplayTitleProps,
+  type SheetPaperProps,
+  type StampProps,
+  type ResourceCounterProps,
+  type CostChipProps,
+  type PipMeterProps,
+} from './components/game';

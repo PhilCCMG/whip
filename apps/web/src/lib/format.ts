@@ -24,6 +24,28 @@ export function formatSimDate(simDate: string, opts: { year?: boolean } = {}): s
   return opts.year === false ? base : `${base} ${d.getUTCFullYear()}`;
 }
 
+const LONG_DAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const LONG_MONTH = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+/** "Monday 17 September 2029" (newspaper datelines). */
+export function formatLongDate(simDate: string): string {
+  const d = parseSimDate(simDate);
+  return `${LONG_DAY[d.getUTCDay()]} ${d.getUTCDate()} ${LONG_MONTH[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
 /** "17 Sep" */
 export function formatShortDate(simDate: string): string {
   const d = parseSimDate(simDate);

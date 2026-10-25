@@ -146,7 +146,7 @@ function holdDivision(draft: GameState, tc: TurnContext, div: Division): void {
   tc.notify(draft, {
     severity: governmentWon ? (passed ? 'good' : 'info') : 'critical',
     title: `${bill.title}: ${passed ? 'passed' : 'defeated'} at ${stageLabel(div.stage)} (${ayes}–${noes})`,
-    body: `${govRebels.length} government MPs defied the whip.${myVote ? ` You voted ${VOTE_LABEL[myVote]}.` : ''}`,
+    body: `${govRebels.length === 0 ? 'No government MPs' : govRebels.length === 1 ? 'One government MP' : `${govRebels.length} government MPs`} defied the whip.${myVote ? ` You voted ${VOTE_LABEL[myVote]}.` : ''} ${!governmentWon ? 'Downing Street is said to be "reflecting".' : Math.abs(ayes - noes) < 20 ? 'The whips are relieved, though they would never say so.' : 'The whips are insufferable this morning.'}`,
     link: { kind: 'division', id: div.id },
   });
   consequences(draft, tc, div, rebels, rec.id);

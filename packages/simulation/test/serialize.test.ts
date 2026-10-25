@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  advanceSimulation,
   canonicalStringify,
   deserializeState,
   hashState,
@@ -7,7 +8,7 @@ import {
   StateLoadError,
   STATE_SCHEMA_VERSION,
 } from '../src';
-import { newGame, play } from './helpers';
+import { ctx, newGame, play } from './helpers';
 
 function loadError(fn: () => unknown): StateLoadError {
   try {
@@ -83,6 +84,24 @@ describe('serialisation', () => {
     const e2 = loadError(() => deserializeState(JSON.stringify(nested)));
     expect(e2.code).toBe('invalid_state');
     expect(e2.issues.join(' ')).toContain('nickname');
+  });
+
+  it('migrates a v2 save (briefing without a newspaper) to v3, and the next advance prints one', () => {
+    const v2 = JSON.parse(serializeState(later)) as {
+      meta: { schemaVersion: number };
+      briefing: Record<string, unknown>;
+    };
+    v2.meta.schemaVersion = 2;
+    delete v2.briefing.newspaper;
+    delete v2.briefing.recentStoryTemplates;
+    const back = deserializeState(JSON.stringify(v2));
+    expect(back.meta.schemaVersion).toBe(STATE_SCHEMA_VERSION);
+    expect(back.briefing.newspaper).toBeNull();
+    expect(back.briefing.recentStoryTemplates).toEqual([]);
+    expect(back.briefing.headlines).toEqual(later.briefing.headlines);
+    const next = advanceSimulation(back, [], ctx);
+    expect(next.state.briefing.newspaper).not.toBeNull();
+    expect(next.newspaper.lead.headline.length).toBeGreaterThan(0);
   });
 
   it('migrates a v1 save (no rebellionCount) to the current schema', () => {

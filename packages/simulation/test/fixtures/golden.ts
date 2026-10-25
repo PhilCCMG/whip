@@ -7,10 +7,15 @@
  * recruitment direction, per-action/per-definition RNG streams, code-unit string ordering, 8-digit
  * id counters, settled-edge pruning, state compaction and the briefing turn. Previous hash:
  * 03e627fbe31aa714fcc9f81458a0.
+ *
+ * Re-recorded 2026-10-25 (SIMULATION_VERSION stays 1, pre-release) for copy only: the weekly
+ * newspaper in the briefing (STATE_SCHEMA_VERSION 3) and more satirical history, notification,
+ * intelligence and event text. Rules are unchanged: a text-stripped state fingerprint over 68
+ * seeded runs is identical before and after. Previous hash: 19e4f5b1ac86230c1992ad5b3199.
  */
 export const GOLDEN = {
   simulationVersion: 1,
   seed: 20290903,
   turns: 6,
-  hash: '19e4f5b1ac86230c1992ad5b3199',
+  hash: '187d9e28da8d231526be1c166b28',
 } as const;

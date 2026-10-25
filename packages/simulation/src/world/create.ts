@@ -35,7 +35,7 @@ import {
   type Urbanity,
 } from '@whip/domain';
 import { computeFidelity } from '../ai/fidelity';
-import { headlineText } from '../chronicle/templates';
+import { headlinesFrom, openingNewspaper } from '../chronicle/newspaper';
 import {
   assertVersion,
   SIMULATION_VERSION,
@@ -810,7 +810,13 @@ export function createCampaignState(input: CreateCampaignInput, ctx: SimulationC
     },
     recentHistory: [],
     inbox: [],
-    briefing: { turn: 1, date: scenario.startDate, headlines: [] },
+    briefing: {
+      turn: 1,
+      date: scenario.startDate,
+      headlines: [],
+      newspaper: null,
+      recentStoryTemplates: [],
+    },
   };
 
   // 10. Relationships (needs the assembled state for derived defaults).
@@ -977,36 +983,19 @@ function openingChronicle(
     .filter((x): x is Division => x !== undefined)
     .sort((a, b) => a.turn - b.turn)[0];
   const bill = firstDivision ? state.parliament.bills.byId[firstDivision.billId] : undefined;
-  const headlines = [headlineText(ctx.content, 'quiet_week', {}, state.meta.seed, 0)];
-  if (firstDivision && bill) {
-    headlines.unshift(
-      headlineText(
-        ctx.content,
-        'division.upcoming',
-        {
-          bill: bill.title,
-          stage: 'second reading',
-          date: formatSimDate(firstDivision.scheduledFor),
-        },
-        state.meta.seed,
-        0,
-      ),
-    );
-  }
-  // The briefing belongs to the week now open for planning (turn 1 at creation).
+  // The opening edition belongs to the week now open for planning (turn 1 at creation).
+  const opening = openingNewspaper(state, ctx.content);
   state.briefing = {
     turn: state.meta.turn,
     date: state.meta.date,
-    headlines: headlines.map((h, i) => ({
-      text: h.text,
-      standfirst: h.standfirst === '' ? null : h.standfirst,
-      importance: i === 0 ? 3 : 1,
-    })),
+    headlines: headlinesFrom(opening.edition),
+    newspaper: opening.edition,
+    recentStoryTemplates: opening.recentStoryTemplates,
   };
   tc.notify(state, {
     severity: 'info',
     title: `Welcome to Westminster, ${me.name.first}`,
-    body: `You hold ${seat.name} by ${formatNumber(majorityOf(seat))} votes. The ${bill?.title ?? 'flagship bill'} comes to a vote on ${firstDivision ? formatSimDate(firstDivision.scheduledFor) : 'soon'}; the whips expect you to back it.`,
+    body: `You hold ${seat.name} by ${formatNumber(majorityOf(seat))} votes. The ${bill?.title ?? 'flagship bill'} comes to a vote on ${firstDivision ? formatSimDate(firstDivision.scheduledFor) : 'soon'}; the whips expect you to back it, and they keep lists.`,
     link: bill ? { kind: 'bill', id: bill.id } : null,
   });
 }

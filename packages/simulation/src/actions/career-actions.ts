@@ -50,7 +50,8 @@ export const requestPromotion: ActionDefinition<'request_promotion'> = {
   describe: () => 'Ask the whips for a government job',
   resolve: (_s, actor) => ({
     status: 'succeeded',
-    summary: 'You made your case to the whips. The answer will come by the end of the week.',
+    summary:
+      'You made your case to the whips, who promised to "bear it in mind". The answer comes at the end of the week.',
     effects: [{ kind: 'career.request_promotion', politicianId: actor.id }],
     scheduled: [],
     history: {
@@ -85,7 +86,8 @@ export const callReshuffle: ActionDefinition<'call_reshuffle'> = {
   describe: () => 'Call a reshuffle',
   resolve: (_s, actor) => ({
     status: 'succeeded',
-    summary: 'You will reshape the government this week.',
+    summary:
+      'You will reshape the government this week. Ministers have started answering their phones on the first ring.',
     effects: [{ kind: 'career.call_reshuffle', politicianId: actor.id }],
     scheduled: [],
     history: { template: 'action.call_reshuffle', vars: {}, importance: 4, subjectIds: [] },

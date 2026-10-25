@@ -47,6 +47,37 @@
   --color-abstain: #b9ae93;
   --color-unknown: #8b958d;
 
+  /* The menu painting's palette, for portraits' skies and sparing in-game accents (09-game-ui.md) */
+  --color-ember: #dc6f33;
+  --color-lamp: #d29a3e;
+  --color-dusk: #8d3b2a;
+  --color-slate: #3d5653;
+  /* The in-game desk: the surface documents lie on. Flat, one step off the ink HUD. */
+  --color-desk: #172725;
+
+  /* In-game motion: a stamp slamming down, a card dealt into a slot, the end-week slash wipe */
+  --animate-stamp: whip-stamp 260ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+  --animate-deal: whip-deal 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-wipe: whip-wipe 520ms cubic-bezier(0.7, 0, 0.2, 1) both;
+
+  @keyframes whip-stamp {
+    from {
+      opacity: 0;
+      scale: 1.7;
+    }
+  }
+  @keyframes whip-deal {
+    from {
+      opacity: 0;
+      translate: 0 -10px;
+    }
+  }
+  @keyframes whip-wipe {
+    from {
+      translate: -110% 0;
+    }
+  }
+
   /* Motion (answering user actions only; disabled under prefers-reduced-motion) */
   --animate-in-fade: whip-fade 140ms ease-out;
   --animate-in-rise: whip-rise 200ms cubic-bezier(0.2, 0.8, 0.2, 1);

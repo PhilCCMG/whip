@@ -9,8 +9,9 @@ export interface ToastItem {
   tone?: 'info' | 'good' | 'warning' | 'critical' | undefined;
 }
 
-const toneBar = {
-  info: 'bg-paper',
+/** The tone as a flat square mark (no coloured side bars). */
+const toneMark = {
+  info: 'bg-paper/60',
   good: 'bg-good',
   warning: 'bg-warning',
   critical: 'bg-whip',
@@ -22,7 +23,10 @@ export interface ToasterProps {
   duration?: number;
 }
 
-/** Presentational toaster: the app owns the list of toasts. */
+/**
+ * Presentational toaster: the app owns the list of toasts. Top right, under the in-game HUD and
+ * tabs, so it never covers END WEEK. Flat ink, no shadow.
+ */
 export function Toaster({ toasts, onDismiss, duration = 6000 }: ToasterProps) {
   return (
     <ToastPrimitive.Provider duration={duration} swipeDirection="right">
@@ -32,9 +36,12 @@ export function Toaster({ toasts, onDismiss, duration = 6000 }: ToasterProps) {
           onOpenChange={(open) => {
             if (!open) onDismiss(t.id);
           }}
-          className="relative flex gap-3 bg-ink py-3 pr-10 pl-0 text-paper shadow-[0_16px_40px_-16px_rgb(0_0_0/0.7)] motion-safe:animate-in-left"
+          className="relative flex gap-3 bg-ink py-3 pr-10 pl-3 text-paper outline-2 -outline-offset-2 outline-paper/25 motion-safe:animate-in-left"
         >
-          <span aria-hidden="true" className={cn('w-1 shrink-0', toneBar[t.tone ?? 'info'])} />
+          <span
+            aria-hidden="true"
+            className={cn('mt-1 size-2.5 shrink-0', toneMark[t.tone ?? 'info'])}
+          />
           <div className="min-w-0">
             <ToastPrimitive.Title className="text-sm font-semibold">{t.title}</ToastPrimitive.Title>
             {t.description && (
@@ -51,7 +58,7 @@ export function Toaster({ toasts, onDismiss, duration = 6000 }: ToasterProps) {
           </ToastPrimitive.Close>
         </ToastPrimitive.Root>
       ))}
-      <ToastPrimitive.Viewport className="fixed right-4 bottom-20 z-[60] flex w-[min(380px,calc(100vw-2rem))] flex-col gap-2 outline-none lg:bottom-4" />
+      <ToastPrimitive.Viewport className="fixed top-16 right-3 z-[60] flex w-[min(380px,calc(100vw-1.5rem))] flex-col gap-2 outline-none md:top-[7.25rem] md:right-4" />
     </ToastPrimitive.Provider>
   );
 }

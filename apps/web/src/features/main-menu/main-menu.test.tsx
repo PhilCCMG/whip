@@ -307,6 +307,8 @@ describe('menu sounds', () => {
     renderApp('/?screen=settings');
     const effects = await screen.findByRole('slider', { name: 'Effects volume' });
     expect(effects).toHaveAttribute('aria-valuenow', '50');
+    // The screen focuses its first row on open; that must have happened before we move focus.
+    expect(screen.getByRole('radio', { name: 'On' })).toHaveFocus();
     effects.focus();
     click.mockClear();
     await user.keyboard('{ArrowRight}');

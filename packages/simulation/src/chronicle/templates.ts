@@ -1,5 +1,4 @@
-import type { ContentRegistry, HeadlineTemplateKey, HistoryTemplateKey } from '@whip/domain';
-import { hashInt } from '../rng';
+import type { ContentRegistry, HistoryTemplateKey } from '@whip/domain';
 
 export type TemplateVars = Record<string, string | number>;
 
@@ -21,19 +20,6 @@ export function historyText(
 ): { title: string; summary: string } {
   const t = content.templates.history[key];
   return { title: fillTemplate(t.title, vars), summary: fillTemplate(t.summary, vars) };
-}
-
-/** Deterministic variant choice: hash of the key and the given parts (no RNG stream consumed). */
-export function headlineText(
-  content: ContentRegistry,
-  key: HeadlineTemplateKey,
-  vars: TemplateVars,
-  ...parts: (string | number)[]
-): { text: string; standfirst: string } {
-  const variants = content.templates.headlines[key];
-  const v = variants[hashInt(key, ...parts) % variants.length] ?? variants[0];
-  if (!v) return { text: key, standfirst: '' };
-  return { text: fillTemplate(v.text, vars), standfirst: fillTemplate(v.standfirst, vars) };
 }
 
 export const VOTE_LABEL: Record<'aye' | 'no' | 'abstain', string> = {

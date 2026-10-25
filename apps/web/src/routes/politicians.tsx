@@ -1,211 +1,213 @@
-import { Button, cn, Input, PartyChip, Select } from '@whip/ui';
-import { Search } from 'lucide-react';
-import { useDeferredValue, useEffect, useId, useState } from 'react';
-import { Link } from 'react-router';
+import { cn, Keycap } from '@whip/ui';
+import { LayoutGrid, List } from 'lucide-react';
+import { useDeferredValue, useEffect, useRef, useState } from 'react';
 import { useParliament, useParty, usePoliticians } from '../api/hooks';
-import type { PoliticianFilters } from '../api/types';
-import { KnownVoteBadge, RelationshipChips } from '../components/politician-bits';
-import { Empty, ErrorState, Loading } from '../components/states';
-import { campaignPath, useCampaignId } from '../lib/params';
-import { useSentinel } from '../lib/use-sentinel';
+import { ErrorState, Loading } from '../components/states';
+import { DeskSearch, MoreBar, ToggleRow } from '../features/tea-room/controls';
+import { RosterCard, RosterTable } from '../features/tea-room/roster';
+import { DeskHeading, GameScreenHeader } from '../game-ui/game-screen';
+import { isEditable, modalOpen } from '../game-ui/keys';
+import { useCampaignId } from '../lib/params';
 import { useUiStore } from '../stores/ui-store';
 
+const SORTS = [
+  { value: 'influence', label: 'Influence' },
+  { value: 'relationship', label: 'Rapport' },
+  { value: 'name', label: 'A–Z' },
+] as const;
+
+const EMPTY_LINES = [
+  'Nobody of that description. The whips will be relieved.',
+  'No members match. Possibly they are all at a fundraiser.',
+] as const;
+
+/**
+ * TEA ROOM: the roster of colleagues. Cards (portrait, party band, post, how they regard you,
+ * known vote) or a dense register; filters are game controls. `/` searches, `V` switches view.
+ */
 export function Component() {
   const id = useCampaignId();
   const filters = useUiStore((s) => s.politicianFilters);
   const setFilters = useUiStore((s) => s.setPoliticianFilters);
+  const view = useUiStore((s) => s.rosterView);
+  const setView = useUiStore((s) => s.setRosterView);
   const [search, setSearch] = useState(filters.search ?? '');
   const deferredSearch = useDeferredValue(search.trim());
   useEffect(() => {
     setFilters({ search: deferredSearch || undefined });
   }, [deferredSearch, setFilters]);
 
+  const searchRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey || e.ctrlKey || e.metaKey || e.repeat) return;
+      if (isEditable(e.target) || modalOpen()) return;
+      if (e.key === '/') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      } else if (e.key === 'v' || e.key === 'V') {
+        e.preventDefault();
+        const s = useUiStore.getState();
+        s.setRosterView(s.rosterView === 'grid' ? 'list' : 'grid');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const parliament = useParliament(id);
   const party = useParty(id);
   const list = usePoliticians(id, filters);
   const rows = list.data?.pages.flatMap((p) => p.items) ?? [];
-  const sentinel = useSentinel<HTMLDivElement>(
-    () => void list.fetchNextPage(),
-    list.hasNextPage && !list.isFetchingNextPage,
+
+  const parties = [
+    { value: undefined, label: 'All', swatch: undefined },
+    ...(parliament.data?.composition ?? []).map((c) => ({
+      value: c.partyId,
+      label: c.shortName,
+      swatch: c.colour,
+      title: c.name,
+    })),
+  ];
+  const factions = [
+    { value: undefined, label: 'Any' },
+    ...(party.data?.factions ?? []).map((f) => ({
+      value: f.id,
+      label: f.name,
+    })),
+  ];
+  const known = rows.filter(
+    (r) => !r.isPlayer && r.knownIntention && r.knownIntention !== 'unknown',
   );
-  const ids = { search: useId(), party: useId(), faction: useId(), sort: useId() };
+  const seats = parliament.data?.totalSeats;
 
   return (
-    <div className="mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)] gap-4 p-3 sm:p-4 lg:p-5">
-      <header className="flex flex-wrap items-end justify-between gap-2 border-b-[3px] border-ink pb-2">
-        <h1 className="font-display text-4xl leading-none font-black font-stretch-condensed">
-          Members
-        </h1>
-        <p className="text-xs text-moss-600">
-          What you know about your colleagues, and what they think of you.
-        </p>
-      </header>
-
-      <div
-        role="search"
-        className="grid gap-2 bg-paper p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]"
-      >
-        <div className="relative">
-          <label htmlFor={ids.search} className="sr-only">
-            Search by name
-          </label>
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 opacity-50"
-          />
-          <Input
-            id={ids.search}
+    <div className="flex min-h-full flex-col">
+      <GameScreenHeader
+        title="Tea Room"
+        kicker={`${seats ?? 650} colleagues, several of them friends`}
+        crop="88% 30%"
+      />
+      <div className="grid flex-1 grid-cols-[minmax(0,1fr)] content-start gap-6 px-4 py-6 md:px-8 md:py-7">
+        <section
+          role="search"
+          aria-label="Find members"
+          className="flex flex-wrap items-end gap-x-7 gap-y-4 border-b border-paper/15 pb-5"
+        >
+          <DeskSearch
+            ref={searchRef}
+            label="Search the tea room"
+            placeholder="Name, seat or post"
+            hotkey="/"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name"
-            className="pl-9"
-            autoComplete="off"
+            onChange={setSearch}
+            className="w-full sm:w-72"
           />
-        </div>
-        <div>
-          <label htmlFor={ids.party} className="sr-only">
-            Party
-          </label>
-          <Select
-            id={ids.party}
-            value={filters.partyId ?? ''}
-            onChange={(e) => setFilters({ partyId: e.target.value || undefined })}
-          >
-            <option value="">All parties</option>
-            {parliament.data?.composition.map((c) => (
-              <option key={c.partyId} value={c.partyId}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div>
-          <label htmlFor={ids.faction} className="sr-only">
-            Faction
-          </label>
-          <Select
-            id={ids.faction}
-            value={filters.factionId ?? ''}
-            onChange={(e) => setFilters({ factionId: e.target.value || undefined })}
-          >
-            <option value="">All factions</option>
-            {party.data?.factions.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div>
-          <label htmlFor={ids.sort} className="sr-only">
-            Sort by
-          </label>
-          <Select
-            id={ids.sort}
-            value={filters.sort ?? 'name'}
-            onChange={(e) => setFilters({ sort: e.target.value as PoliticianFilters['sort'] })}
-          >
-            <option value="influence">Most influential</option>
-            <option value="relationship">Best relationship</option>
-            <option value="name">Name A–Z</option>
-          </Select>
-        </div>
-      </div>
-
-      <section aria-label="Members" className="bg-paper">
-        {list.isPending ? (
-          <Loading label="Loading members" />
-        ) : list.isError ? (
-          <ErrorState className="m-4" error={list.error} onRetry={() => void list.refetch()} />
-        ) : rows.length === 0 ? (
-          <Empty>No members match these filters.</Empty>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="max-md:sr-only">
-              <tr className="border-b-2 border-ink text-left text-xs">
-                <th scope="col" className="px-3 py-2 font-semibold">
-                  Name
-                </th>
-                <th scope="col" className="px-3 py-2 font-semibold">
-                  Party
-                </th>
-                <th scope="col" className="px-3 py-2 font-semibold max-xl:hidden">
-                  Seat
-                </th>
-                <th scope="col" className="px-3 py-2 font-semibold max-lg:hidden">
-                  Role
-                </th>
-                <th scope="col" className="px-3 py-2 text-right font-semibold">
-                  Influence
-                </th>
-                <th scope="col" className="px-3 py-2 font-semibold">
-                  Towards you
-                </th>
-                <th scope="col" className="px-3 py-2 font-semibold">
-                  Next vote
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((p) => (
-                <tr
-                  key={p.id}
-                  className={cn(
-                    'border-b border-moss-200 hover:bg-paper-deep/60 max-md:grid max-md:grid-cols-[1fr_auto] max-md:gap-x-3 max-md:gap-y-1 max-md:px-3 max-md:py-2.5',
-                    p.isPlayer && 'bg-whip/[0.06]',
-                  )}
-                >
-                  <th scope="row" className="px-3 py-2 text-left font-normal max-md:p-0">
-                    <Link
-                      to={campaignPath(id, `politicians/${encodeURIComponent(p.id)}`)}
-                      className="font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-                    >
-                      {p.name}
-                    </Link>
-                    {p.isPlayer && (
-                      <span className="ml-1.5 text-xs font-semibold text-whip">You</span>
-                    )}
-                    <span className="block text-xs text-moss-600 md:hidden">
-                      {p.offices[0] ?? p.constituencyName}
-                    </span>
-                  </th>
-                  <td className="px-3 py-2 max-md:p-0 max-md:text-right">
-                    <PartyChip colour={p.partyColour} label={p.partyShort ?? 'Ind'} />
-                  </td>
-                  <td className="px-3 py-2 text-moss-600 max-xl:hidden">{p.constituencyName}</td>
-                  <td className="px-3 py-2 max-lg:hidden">
-                    <span className="block">{p.offices[0] ?? 'Backbencher'}</span>
-                    {p.factionName && (
-                      <span className="block text-xs text-moss-600">{p.factionName}</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-right font-semibold tabular max-md:hidden">
-                    {Math.round(p.influence)}
-                  </td>
-                  <td className="px-3 py-2 max-md:p-0">
-                    {p.isPlayer ? null : <RelationshipChips rel={p.relationshipToPlayer} />}
-                  </td>
-                  <td className="px-3 py-2 max-md:p-0 max-md:text-right">
-                    {!p.isPlayer && <KnownVoteBadge vote={p.knownIntention} />}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        <div ref={sentinel} className="flex justify-center py-3">
-          {list.hasNextPage && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={list.isFetchingNextPage}
-              onClick={() => void list.fetchNextPage()}
-            >
-              {list.isFetchingNextPage ? 'Loading…' : 'Load more'}
-            </Button>
+          <ToggleRow
+            label="Party"
+            options={parties}
+            value={filters.partyId}
+            onChange={(partyId) => setFilters({ partyId })}
+          />
+          {party.data && (
+            <ToggleRow
+              label={`${party.data.shortName} faction`}
+              options={factions}
+              value={filters.factionId}
+              onChange={(factionId) => setFilters({ factionId })}
+            />
           )}
-        </div>
-      </section>
+          <div className="flex flex-wrap items-end gap-x-7 gap-y-4">
+            <ToggleRow
+              label="Order by"
+              options={SORTS}
+              value={filters.sort ?? 'name'}
+              onChange={(sort) => setFilters({ sort: sort })}
+            />
+            <div className="flex items-end gap-2">
+              <ToggleRow
+                label="View"
+                options={[
+                  {
+                    value: 'grid' as const,
+                    label: (
+                      <>
+                        <LayoutGrid aria-hidden="true" className="size-3.5" /> Cards
+                      </>
+                    ),
+                  },
+                  {
+                    value: 'list' as const,
+                    label: (
+                      <>
+                        <List aria-hidden="true" className="size-3.5" /> Register
+                      </>
+                    ),
+                  },
+                ]}
+                value={view}
+                onChange={setView}
+              />
+              <Keycap
+                className="mb-1.5 max-md:hidden"
+                aria-hidden="true"
+                title="Press V to switch view"
+              >
+                V
+              </Keycap>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="roster-title" className="grid gap-4">
+          <DeskHeading
+            id="roster-title"
+            title="Members"
+            meta={
+              list.isPending
+                ? 'Consulting the whips…'
+                : `${rows.length}${list.hasNextPage ? '+' : ''} on the list · ${known.length} voting intentions known · “?” means nobody has asked`
+            }
+          />
+          {list.isPending ? (
+            <Loading label="Consulting the whips" className="text-paper" />
+          ) : list.isError ? (
+            <ErrorState
+              className="bg-paper text-ink"
+              error={list.error}
+              onRetry={() => void list.refetch()}
+            />
+          ) : rows.length === 0 ? (
+            <p className="border border-dashed border-paper/25 px-4 py-8 text-center text-[14px] text-paper/80">
+              {EMPTY_LINES[(filters.search?.length ?? 0) % EMPTY_LINES.length]}
+            </p>
+          ) : view === 'grid' ? (
+            <ul
+              aria-label="Members"
+              className={cn(
+                'grid gap-2.5',
+                'grid-cols-[repeat(auto-fill,minmax(min(100%,17.5rem),1fr))]',
+              )}
+            >
+              {rows.map((p) => (
+                <RosterCard key={p.id} p={p} campaignId={id} />
+              ))}
+            </ul>
+          ) : (
+            <RosterTable rows={rows} campaignId={id} />
+          )}
+          <div>
+            {list.hasNextPage && (
+              <MoreBar
+                onClick={() => void list.fetchNextPage()}
+                busy={list.isFetchingNextPage}
+                label="More members"
+                busyLabel="Fetching more members…"
+              />
+            )}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

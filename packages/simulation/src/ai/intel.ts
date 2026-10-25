@@ -8,13 +8,13 @@ export function intelPhrase(state: GameState, a: PlannedAction): string {
   const t = (id: string) => (id === me ? 'you' : nameOf(state, id as PlannedAction['actorId']));
   switch (a.kind) {
     case 'meet_politician':
-      return `met ${t(a.params.targetId)} privately`;
+      return `met ${t(a.params.targetId)} privately, in a corner of the tea room`;
     case 'build_relationship':
-      return `is cultivating ${t(a.params.targetId)}`;
+      return `is cultivating ${t(a.params.targetId)}, one long lunch at a time`;
     case 'seek_endorsement':
       return `is courting ${t(a.params.targetId)} for an endorsement`;
     case 'make_political_promise':
-      return `made a promise to ${t(a.params.targetId)}`;
+      return `made ${t(a.params.targetId)} a promise, the binding kind (allegedly)`;
     case 'support_legislation':
     case 'oppose_legislation': {
       const bill = state.parliament.bills.byId[a.params.billId]?.title ?? 'the bill';
@@ -24,14 +24,14 @@ export function intelPhrase(state: GameState, a: PlannedAction): string {
     }
     case 'rebel_against_party': {
       const div = findDivision(state, a.params.divisionId);
-      return `is organising a rebellion: voting ${VOTE_LABEL[a.params.vote]}${div ? ` at ${stageLabel(div.stage)}` : ''}`;
+      return `is quietly organising a rebellion: voting ${VOTE_LABEL[a.params.vote]}${div ? ` at ${stageLabel(div.stage)}` : ''}`;
     }
     case 'request_promotion':
-      return 'asked the whips for a government job';
+      return 'asked the whips for a government job, modestly, at length';
     case 'respond_to_event':
       return 'responded to events';
     case 'call_reshuffle':
-      return 'is planning a reshuffle';
+      return 'is planning a reshuffle; ministers are keeping their phones charged';
   }
 }
 

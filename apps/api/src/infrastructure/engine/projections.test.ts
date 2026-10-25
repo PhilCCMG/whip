@@ -3,6 +3,7 @@ import {
   CareerOverviewSchema,
   DiarySchema,
   HistoryTypeSchema,
+  NewspaperSchema,
   ParliamentViewSchema,
   PartyViewSchema,
   PoliticianListQuerySchema,
@@ -183,5 +184,62 @@ describe('real projections parse with their contracts schemas', () => {
     // After the division the list shows the next division's intention (third reading) or votes.
     PoliticianListResponseSchema.parse(projections.politicianList(s, listQuery()));
     expect(s.politicians.byId[WALSH as PoliticianId]).toBeDefined();
+  });
+
+  it('maps the newspaper into the turn report and career overview, keeping headlines', () => {
+    const opening = CareerOverviewSchema.parse(
+      projections.careerOverview(initial, summary(initial)),
+    );
+    const paper = NewspaperSchema.parse(opening.briefing.newspaper);
+    expect(paper.masthead.date).toBe('2029-09-03');
+    expect(opening.briefing.headlines[0]?.text).toBe(paper.lead.headline);
+    // Optional article fields are omitted, never null.
+    for (const a of [paper.lead, ...paper.sections.flatMap((x) => x.articles)]) {
+      for (const k of ['standfirst', 'byline', 'body'] as const) expect(a[k]).not.toBeNull();
+    }
+
+    const out = engine.advance(initial);
+    const report = TurnReportSchema.parse(
+      projections.turnReport({ before: initial, output: out, revision: 2 }),
+    );
+    expect(report.newspaper).toBeDefined();
+    const politics = report.newspaper?.sections.find((x) => x.key === 'politics')?.articles ?? [];
+    expect(report.headlines.map((h) => h.text)).toEqual(
+      [report.newspaper!.lead, ...politics].slice(0, 5).map((a) => a.headline),
+    );
+    const after = CareerOverviewSchema.parse(
+      projections.careerOverview(out.state, summary(out.state)),
+    );
+    expect(after.briefing.newspaper).toEqual(report.newspaper);
+  });
+
+  it('still parses stored turn reports and states from before the newspaper', () => {
+    const legacy = {
+      revision: 3,
+      turn: 2,
+      simDate: '2029-09-10',
+      nextTurn: 3,
+      nextSimDate: '2029-09-17',
+      headlines: [{ text: 'All eyes on the housing bill', importance: 1 }],
+      actionOutcomes: [],
+      divisions: [],
+      notifications: [],
+      capitalChange: 1,
+    };
+    expect(TurnReportSchema.parse(legacy).newspaper).toBeUndefined();
+    // A v2 save migrates with no edition: the overview simply omits the paper until next week.
+    const v2 = JSON.parse(engine.serialize(initial)) as {
+      meta: { schemaVersion: number };
+      briefing: Record<string, unknown>;
+    };
+    v2.meta.schemaVersion = 2;
+    delete v2.briefing.newspaper;
+    delete v2.briefing.recentStoryTemplates;
+    const migrated = engine.deserialize(JSON.stringify(v2));
+    const overview = CareerOverviewSchema.parse(
+      projections.careerOverview(migrated, summary(migrated)),
+    );
+    expect(overview.briefing.newspaper).toBeUndefined();
+    expect(overview.briefing.headlines.length).toBeGreaterThan(0);
   });
 });

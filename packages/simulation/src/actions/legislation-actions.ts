@@ -113,7 +113,7 @@ function legislationResolve(
   if (!div)
     return {
       status: 'failed',
-      summary: 'There is no division left to lobby for.',
+      summary: 'There is no division left to lobby for. The tea room was very understanding.',
       effects: [],
       scheduled: [],
       history: null,
@@ -197,7 +197,7 @@ function legislationResolve(
   return {
     status: 'succeeded',
     summary:
-      `You ${support ? 'spoke up for' : 'came out against'} the ${bill.title}. ${detail}`.trim(),
+      `${support ? `You spoke up for the ${bill.title}, to approving nods from the front bench.` : `You came out against the ${bill.title}. Somewhere, a whip uncapped a pen.`} ${detail}`.trim(),
     effects,
     scheduled: [],
     history: {
@@ -367,7 +367,7 @@ export const rebelAgainstParty: ActionDefinition<'rebel_against_party'> = {
       if (state.politicians.byId[a.id]?.isPlayer) {
         effects.push({
           kind: 'knowledge.intel',
-          text: `${displayName(actor)} asked you to join a rebellion on the ${bill.title}: they will vote ${VOTE_LABEL[p.vote]}.`,
+          text: `${displayName(actor)} took you aside to ask you to join a rebellion on the ${bill.title}: they will vote ${VOTE_LABEL[p.vote]}. "No pressure," they added.`,
           politicianId: actor.id,
         });
         effects.push({
@@ -414,7 +414,7 @@ export const rebelAgainstParty: ActionDefinition<'rebel_against_party'> = {
     const detail = `${allies.length} colleague${allies.length === 1 ? '' : 's'} who trust them are being sounded out.`;
     return {
       status: 'succeeded',
-      summary: `You will vote ${VOTE_LABEL[p.vote]} at ${stageLabel(div.stage)}. ${allies.length} ally${allies.length === 1 ? '' : 'ies'} sounded out. ${whipsKnow ? 'The whips have heard.' : 'The whips do not know yet.'}`,
+      summary: `You will vote ${VOTE_LABEL[p.vote]} at ${stageLabel(div.stage)}, whatever the whips say. ${allies.length} ${allies.length === 1 ? 'ally' : 'allies'} sounded out. ${whipsKnow ? 'The whips have heard, and are being very calm about it.' : 'The whips do not know yet.'}`,
       effects,
       scheduled: [],
       history: {

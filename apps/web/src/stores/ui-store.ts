@@ -30,6 +30,9 @@ interface UiState {
   setPoliticianFilters: (patch: Partial<PoliticianFilters>) => void;
   historyFilters: HistoryFilters;
   setHistoryFilters: (patch: Partial<HistoryFilters>) => void;
+  /** Tea Room roster layout: portrait cards or dense rows. */
+  rosterView: 'grid' | 'list';
+  setRosterView: (view: 'grid' | 'list') => void;
 }
 
 export const useUiStore = create<UiState>()((set) => ({
@@ -49,4 +52,6 @@ export const useUiStore = create<UiState>()((set) => ({
     set((s) => ({ politicianFilters: { ...s.politicianFilters, ...patch } })),
   historyFilters: {},
   setHistoryFilters: (patch) => set((s) => ({ historyFilters: { ...s.historyFilters, ...patch } })),
+  rosterView: 'grid',
+  setRosterView: (rosterView) => set({ rosterView }),
 }));

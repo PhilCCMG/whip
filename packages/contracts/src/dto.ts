@@ -265,6 +265,67 @@ export const HeadlineSchema = z.object({
 });
 
 /**
+ * A generated newspaper edition (docs/architecture/10-voice-and-copy.md). Deterministic per
+ * campaign + turn. Most articles cover the week's in-game politics; a minority are satirical
+ * non-political filler in back sections.
+ */
+export const NewspaperSectionKeySchema = z.enum([
+  'politics',
+  'constituencies',
+  'and_finally',
+  'letters',
+  'weather',
+  'sport',
+  'classifieds',
+  'corrections',
+]);
+export type NewspaperSectionKey = z.infer<typeof NewspaperSectionKeySchema>;
+
+export const ArticleSchema = z.object({
+  id: z.string(),
+  headline: z.string(),
+  standfirst: z.string().optional(),
+  byline: z.string().optional(),
+  /** One to three short sentences. */
+  body: z.string().optional(),
+  importance: z.number().int().min(1).max(5),
+  /** True for filler: not derived from simulation events. */
+  filler: z.boolean(),
+  /** Entities the story is about, for links and portraits. */
+  refs: z
+    .array(
+      z.object({
+        kind: z.enum(['politician', 'bill', 'division', 'constituency', 'party']),
+        id: IdSchema,
+      }),
+    )
+    .default([]),
+});
+export type Article = z.infer<typeof ArticleSchema>;
+
+export const NewspaperSchema = z.object({
+  masthead: z.object({
+    /** Fictional title, e.g. "The Morning Whip". */
+    title: z.string(),
+    slogan: z.string(),
+    /** Display price, e.g. "£1.80". */
+    price: z.string(),
+    /** e.g. "No. 48,212 · Late edition". */
+    edition: z.string(),
+    date: SimDateSchema,
+  }),
+  lead: ArticleSchema,
+  sections: z.array(
+    z.object({
+      key: NewspaperSectionKeySchema,
+      title: z.string(),
+      articles: z.array(ArticleSchema),
+    }),
+  ),
+});
+export type Newspaper = z.infer<typeof NewspaperSchema>;
+
+/**
  * Result of `POST /advance`, also served by `GET /turn-report/latest`.
  * `turn` / `simDate` are the **resolved** week: the week whose diary was just played, and its
  * Monday. `nextTurn` / `nextSimDate` are the week now open for planning (the campaign's turn).
@@ -280,6 +341,8 @@ export const TurnReportSchema = z.object({
   divisions: z.array(DivisionResultSchema),
   notifications: z.array(NotificationSchema),
   capitalChange: z.number().int(),
+  /** The week's paper. Optional for compatibility with reports stored before it existed. */
+  newspaper: NewspaperSchema.optional(),
 });
 export type TurnReport = z.infer<typeof TurnReportSchema>;
 
@@ -335,7 +398,12 @@ export const CareerOverviewSchema = z.object({
   diary: DiarySchema,
   pendingEvents: z.array(PendingEventSchema),
   notifications: z.array(NotificationSchema),
-  briefing: z.object({ turn: z.number().int(), headlines: z.array(HeadlineSchema) }),
+  briefing: z.object({
+    turn: z.number().int(),
+    headlines: z.array(HeadlineSchema),
+    /** The current edition (the latest turn's paper, or the opening edition). */
+    newspaper: NewspaperSchema.optional(),
+  }),
   upcoming: z.array(
     z.object({
       date: SimDateSchema,
