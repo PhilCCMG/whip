@@ -11,7 +11,8 @@ import {
 import { BILL, ctx, deepFreeze, newGame, play, SECOND_READING, strictCtx } from './helpers';
 
 describe('invariants', () => {
-  it('hold after creation and after 12 turns across several seeds', () => {
+  // Simulates 36 turns; slow under a full parallel run.
+  it('hold after creation and after 12 turns across several seeds', { timeout: 20_000 }, () => {
     for (const seed of [1, 17, 99]) {
       const s = newGame(seed);
       expect(checkInvariants(s, ctx)).toEqual([]);

@@ -21,3 +21,8 @@ Thumbs.db
 # Tauri (apps/desktop)
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
+
+# Music masters are large; compressed outputs live in apps/web/src/assets/audio/music.
+apps/web/audio-src/music/
+# Art masters (large PNGs); compressed outputs live in apps/web/src/assets/art.
+apps/web/art-src/

@@ -1,27 +1,54 @@
 import { useEffect, type RefObject } from 'react';
-import clickSrc from '../../assets/audio/sfx/click.wav';
-import whooshSrc from '../../assets/audio/sfx/whoosh.wav';
+import clickSrc from '../../assets/audio/sfx/click.mp3?no-inline';
+import divisionBellSrc from '../../assets/audio/sfx/division-bell.mp3?no-inline';
+import pageTurnSrc from '../../assets/audio/sfx/page-turn.mp3?no-inline';
+import stampHeavySrc from '../../assets/audio/sfx/stamp-heavy.mp3?no-inline';
+import stampSrc from '../../assets/audio/sfx/stamp.mp3?no-inline';
+import whooshSrc from '../../assets/audio/sfx/whoosh.mp3?no-inline';
 import { useSettingsStore } from '../../stores/settings-store';
-import { createSfxEngine, type SfxEngine } from './sfx';
-import { menuMusic } from './use-menu-music';
+import { createSfxEngine, type SfxEngine, type SfxName } from './sfx';
+import { duckMusic } from './use-menu-music';
 
-/** Music level under the transition whoosh. */
-const DUCK = 0.7;
+// `?no-inline`: always a same-origin file, never a data: URI (the desktop CSP's connect-src has no
+// data:, and the engine fetches its samples).
+
+/** Music level under a sound that ducks it: the whoosh dips it, the bell rings over it. */
+export const DUCK: Partial<Record<SfxName, number>> = { whoosh: 0.7, 'division-bell': 0.55 };
 
 let shared: SfxEngine | null = null;
 let unduck: ReturnType<typeof setTimeout> | null = null;
+let duckedUntil = 0;
+let duckedTo = 1;
+
+/** Duck the music for `ms`, keeping the deeper of two overlapping ducks until the later ends. */
+function duckFor(factor: number, ms: number) {
+  const now = Date.now();
+  const active = now < duckedUntil;
+  duckedTo = active ? Math.min(duckedTo, factor) : factor;
+  duckedUntil = Math.max(active ? duckedUntil : 0, now + ms);
+  duckMusic(duckedTo);
+  if (unduck) clearTimeout(unduck);
+  unduck = setTimeout(() => {
+    duckedTo = 1;
+    duckMusic(1, 600);
+  }, duckedUntil - now);
+}
 
 /** The app-wide effects engine (created lazily; nothing is fetched until `useUiSoundPreload`). */
 export function sfxEngine(): SfxEngine {
   if (!shared) {
     shared = createSfxEngine({
-      sources: { click: clickSrc, whoosh: whooshSrc },
+      sources: {
+        click: clickSrc,
+        whoosh: whooshSrc,
+        'stamp-heavy': stampHeavySrc,
+        stamp: stampSrc,
+        'page-turn': pageTurnSrc,
+        'division-bell': divisionBellSrc,
+      },
       onStart: (name, ms) => {
-        if (name !== 'whoosh') return;
-        const music = menuMusic();
-        music.duck(DUCK);
-        if (unduck) clearTimeout(unduck);
-        unduck = setTimeout(() => music.duck(1, 600), ms);
+        const factor = DUCK[name];
+        if (factor !== undefined) duckFor(factor, ms);
       },
     });
     const { sound, effectsVolume } = useSettingsStore.getState();
@@ -36,24 +63,41 @@ export function sfxEngine(): SfxEngine {
 }
 
 /**
- * UI sounds. `click` is the quiet feedback for cursor moves, confirms and back (throttled);
- * `whoosh` is only for the two big transitions: title → menu, and entering a career.
+ * UI sounds (docs/architecture/09-game-ui.md §10 has the full map).
+ * - `click`: quiet feedback for cursor moves, confirms and back (throttled).
+ * - `whoosh`: only the big transitions: title → menu, entering a career, END WEEK.
+ * - `stampHeavy`: the week actually ending, and a division's verdict.
+ * - `stamp`: outcome stamps landing in the turn report (capped, see `stampCues`).
+ * - `pageTurn`: the paper arriving, and a new induction step.
+ * - `divisionBell`: a division being called in the turn report.
  */
 export const uiSound = {
   click: () => sfxEngine().play('click'),
   whoosh: () => sfxEngine().play('whoosh'),
+  stampHeavy: () => sfxEngine().play('stamp-heavy'),
+  stamp: () => sfxEngine().play('stamp'),
+  pageTurn: () => sfxEngine().play('page-turn'),
+  divisionBell: () => sfxEngine().play('division-bell'),
   /** Call inside the start gesture, alongside `menuMusic().unlock()`. */
   unlock: () => sfxEngine().unlock(),
 };
 
-/** Fetch the click now and the whoosh just after first paint. Mount on the menu/title. */
-export function useUiSoundPreload() {
+/** Sounds the front end needs (no bell or stamps on the title screen). */
+const MENU_SOUNDS: SfxName[] = ['whoosh'];
+/** Everything else, fetched once a career is open. */
+const GAME_SOUNDS: SfxName[] = ['whoosh', 'stamp-heavy', 'page-turn', 'stamp', 'division-bell'];
+
+/**
+ * Fetch the click now and the rest just after first paint: on the menu/title only the whoosh, in
+ * a career (`'game'`) the stamps, page turn and bell too.
+ */
+export function useUiSoundPreload(scope: 'menu' | 'game' = 'menu') {
   useEffect(() => {
     const engine = sfxEngine();
     engine.prepare(['click']);
-    const t = setTimeout(() => engine.prepare(['whoosh']), 250);
+    const t = setTimeout(() => engine.prepare(scope === 'game' ? GAME_SOUNDS : MENU_SOUNDS), 250);
     return () => clearTimeout(t);
-  }, []);
+  }, [scope]);
 }
 
 const CLICKABLE = 'button, a[href], [role="radio"], [role="menuitem"], [role="tab"]';

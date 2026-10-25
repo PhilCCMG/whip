@@ -32,6 +32,10 @@ describe('TurnReportContent', () => {
       expect(within(article).getByRole('link', { name: r.name })).toBeInTheDocument();
     }
     expect(within(article).getByRole('table', { name: 'Votes by party' })).toBeInTheDocument();
+    // The division lobby painting sits behind the tally's header band, purely decorative.
+    const lobby = article.querySelector('img[data-scene="division-lobby"]');
+    expect(lobby).toHaveAttribute('alt', '');
+    expect(lobby).toHaveAttribute('aria-hidden', 'true');
   });
 });
 
@@ -49,7 +53,9 @@ describe('TurnReportContent as a newspaper', () => {
         ),
       },
     ]);
-    expect(await screen.findByRole('heading', { name: 'The Daily Clarion' })).toBeInTheDocument();
+    // The painted masthead is the heading's content; its alt keeps the heading named.
+    const masthead = await screen.findByRole('heading', { name: 'The Daily Clarion' });
+    expect(within(masthead).getByRole('img', { name: 'The Daily Clarion' })).toBeInTheDocument();
     expect(screen.getByText(newspaper.masthead.slogan)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: newspaper.lead.headline })).toBeInTheDocument();
     for (const section of newspaper.sections) {
@@ -72,7 +78,8 @@ describe('TurnReportContent as a newspaper', () => {
         element: <TurnReportContent report={turnReportFixture} campaignId={CAMPAIGN_ID} />,
       },
     ]);
-    expect(await screen.findByRole('heading', { name: 'The Morning Whip' })).toBeInTheDocument();
+    const masthead = await screen.findByRole('heading', { name: 'The Morning Whip' });
+    expect(within(masthead).getByRole('img', { name: 'The Morning Whip' })).toBeInTheDocument();
     for (const h of turnReportFixture.headlines) {
       expect(screen.getByRole('heading', { name: h.text })).toBeInTheDocument();
     }

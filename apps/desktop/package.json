@@ -1,6 +1,6 @@
 {
   "name": "@whip/desktop",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "WHIP desktop client (Tauri v2) — bundled SPA, cloud API. See docs/architecture/08-desktop.md.",

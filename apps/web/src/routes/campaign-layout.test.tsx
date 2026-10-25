@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
+import { careerMusic, menuMusic } from '../features/audio/use-menu-music';
 import { uiSound } from '../features/audio/use-ui-sound';
 import { CAMPAIGN_ID } from '../mocks/fixtures';
 import { useSettingsStore } from '../stores/settings-store';
@@ -8,10 +9,12 @@ import { renderApp } from '../test/render-app';
 
 let click: MockInstance<() => boolean>;
 let whoosh: MockInstance<() => boolean>;
+let stampHeavy: MockInstance<() => boolean>;
 
 beforeEach(() => {
   click = vi.spyOn(uiSound, 'click').mockReturnValue(true);
   whoosh = vi.spyOn(uiSound, 'whoosh').mockReturnValue(true);
+  stampHeavy = vi.spyOn(uiSound, 'stampHeavy').mockReturnValue(true);
   useSettingsStore.setState({ motion: 'reduced' });
 });
 afterEach(() => {
@@ -94,10 +97,28 @@ describe('game shell (HUD)', () => {
     await user.keyboard('e');
     await screen.findByRole('alertdialog');
     expect(whoosh).not.toHaveBeenCalled();
+    // Opening the confirm is not the week ending: no stamp yet.
+    expect(stampHeavy).not.toHaveBeenCalled();
     await user.keyboard('e');
     const report = await screen.findByRole('dialog', { name: /The week in Westminster/ });
     expect(whoosh).toHaveBeenCalledTimes(1);
+    expect(stampHeavy).toHaveBeenCalledTimes(1);
     expect(within(report).getByRole('button', { name: 'Continue to week 4' })).toHaveFocus();
+  });
+
+  it('stamps the week ended from "End week anyway", which does not also click', async () => {
+    const user = userEvent.setup();
+    renderApp(`/c/${CAMPAIGN_ID}`);
+    await office();
+    await user.click(screen.getByRole('button', { name: 'End week' }));
+    const confirm = await screen.findByRole('alertdialog', { name: 'End the week?' });
+    // The confirm opening ticks; the END WEEK button itself is data-sfx="off".
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(stampHeavy).not.toHaveBeenCalled();
+    await user.click(within(confirm).getByRole('button', { name: /End week anyway/ }));
+    await screen.findByRole('dialog', { name: /The week in Westminster/ });
+    expect(stampHeavy).toHaveBeenCalledTimes(1);
+    expect(click).toHaveBeenCalledTimes(1);
   });
 
   it('plays the week-change transition before the report (full motion)', async () => {
@@ -165,5 +186,36 @@ describe('game shell (HUD)', () => {
     await user.click(await screen.findByRole('menuitem', { name: /^Save & exit/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
     expect(await screen.findByRole('menu', { name: 'Main menu' })).toBeInTheDocument();
+  });
+});
+
+describe('career music', () => {
+  it('loops the career track across tabs and crossfades back to the menu theme on exit', async () => {
+    const career = careerMusic();
+    const menu = menuMusic();
+    const enter = vi.spyOn(career, 'enter');
+    const leave = vi.spyOn(career, 'leave');
+    const user = userEvent.setup();
+    const { router } = renderApp(`/c/${CAMPAIGN_ID}`);
+    await office();
+    expect(enter).toHaveBeenCalledTimes(1);
+    expect(career.state.wanted).toBe(true);
+    expect(menu.state.wanted).toBe(false);
+
+    // Changing places keeps the same track going: no leave, no second enter.
+    await user.keyboard('2');
+    expect(await screen.findByRole('heading', { name: 'Chamber', level: 1 })).toBeInTheDocument();
+    await user.keyboard('1');
+    await office();
+    expect(enter).toHaveBeenCalledTimes(1);
+    expect(leave).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Menu (Esc)' }));
+    await user.click(await screen.findByRole('menuitem', { name: /^Save & exit/ }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    await screen.findByRole('menu', { name: 'Main menu' });
+    expect(leave).toHaveBeenCalledTimes(1);
+    expect(career.state.wanted).toBe(false);
+    expect(menu.state.wanted).toBe(true);
   });
 });

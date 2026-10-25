@@ -4,6 +4,7 @@ import {
   CLICK_RATE_SPREAD,
   CLICK_THROTTLE_MS,
   createSfxEngine,
+  SFX_SPEC,
   type BufferLike,
   type ContextLike,
   type GainLike,
@@ -66,6 +67,16 @@ function fakeContext() {
   return ctx;
 }
 
+const SOURCES = {
+  click: 'c.wav',
+  whoosh: 'w.wav',
+  'stamp-heavy': 'sh.mp3',
+  stamp: 's.mp3',
+  'page-turn': 'p.mp3',
+  'division-bell': 'b.mp3',
+} as const;
+const DURATION: Record<string, number> = { 'w.wav': 2.5, 'b.mp3': 4, 's.mp3': 1.1, 'p.mp3': 0.4 };
+
 const bytesFor = (seconds: number) => new Float32Array([seconds]).buffer;
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
@@ -74,9 +85,9 @@ function setup(overrides: Partial<SfxOptions> = {}) {
   let t = 1000;
   const target = new EventTarget();
   const onStart = vi.fn();
-  const fetchBytes = vi.fn((url: string) => Promise.resolve(bytesFor(url === 'w.wav' ? 2.5 : 0.2)));
+  const fetchBytes = vi.fn((url: string) => Promise.resolve(bytesFor(DURATION[url] ?? 0.2)));
   const engine = createSfxEngine({
-    sources: { click: 'c.wav', whoosh: 'w.wav' },
+    sources: SOURCES,
     createContext: () => ctx,
     fetchBytes,
     now: () => t,
@@ -92,10 +103,13 @@ function setup(overrides: Partial<SfxOptions> = {}) {
     target,
     onStart,
     fetchBytes,
-    // Created in this order: master, then the ui and transition categories.
+    // Created in this order: master, then the categories in CATEGORY_LEVEL order.
     master: () => ctx.gains[0]!,
     ui: () => ctx.gains[1]!,
     transition: () => ctx.gains[2]!,
+    stamp: () => ctx.gains[3]!,
+    paper: () => ctx.gains[4]!,
+    bell: () => ctx.gains[5]!,
     advance: (ms: number) => {
       t += ms;
     },
@@ -103,7 +117,7 @@ function setup(overrides: Partial<SfxOptions> = {}) {
 }
 
 async function ready(s: ReturnType<typeof setup>) {
-  s.engine.prepare();
+  s.engine.prepare(Object.keys(SOURCES) as (keyof typeof SOURCES)[]);
   s.target.dispatchEvent(new Event('pointerdown'));
   await flush();
 }
@@ -207,5 +221,83 @@ describe('sfx engine', () => {
     expect(failingFetch.engine.play('click')).toBe(true);
     await flush();
     expect(failingFetch.ctx.sources).toHaveLength(0);
+  });
+
+  it('routes the new sounds through their own mixer categories', async () => {
+    const s = setup();
+    await ready(s);
+    s.engine.setVolume(1);
+    expect(s.stamp().gain.value).toBeCloseTo(CATEGORY_LEVEL.stamp);
+    expect(s.paper().gain.value).toBeCloseTo(CATEGORY_LEVEL.paper);
+    expect(s.bell().gain.value).toBeCloseTo(CATEGORY_LEVEL.bell);
+    // Louder than the click, quieter than the whoosh.
+    for (const level of [CATEGORY_LEVEL.stamp, CATEGORY_LEVEL.paper, CATEGORY_LEVEL.bell]) {
+      expect(level).toBeGreaterThan(CATEGORY_LEVEL.ui);
+      expect(level).toBeLessThan(CATEGORY_LEVEL.transition);
+    }
+
+    for (const name of ['stamp-heavy', 'stamp', 'page-turn', 'division-bell'] as const) {
+      expect(s.engine.play(name)).toBe(true);
+    }
+    const outputs = s.ctx.sources.map((x) => x.output);
+    expect(outputs).toEqual([s.stamp(), s.stamp(), s.paper(), s.bell()]);
+  });
+
+  it('keeps a minimum gap per sound, independently of the others', async () => {
+    const s = setup();
+    await ready(s);
+    const gap = SFX_SPEC.stamp.minGapMs;
+    expect(s.engine.play('stamp')).toBe(true);
+    // Another sound is not held up by the stamp's gap.
+    expect(s.engine.play('stamp-heavy')).toBe(true);
+    s.advance(gap - 1);
+    expect(s.engine.play('stamp')).toBe(false);
+    s.advance(1);
+    expect(s.engine.play('stamp')).toBe(true);
+
+    expect(s.engine.play('page-turn')).toBe(true);
+    s.advance(SFX_SPEC['page-turn'].minGapMs - 1);
+    expect(s.engine.play('page-turn')).toBe(false);
+    expect(s.ctx.sources.filter((x) => x.started)).toHaveLength(4);
+  });
+
+  it('never overlaps the bell with itself and reports it for music ducking', async () => {
+    const s = setup();
+    await ready(s);
+    expect(s.engine.play('division-bell')).toBe(true);
+    expect(s.onStart).toHaveBeenCalledWith('division-bell', 4000);
+    s.advance(3900);
+    expect(s.engine.play('division-bell')).toBe(false);
+    // Other sounds still play over it.
+    expect(s.engine.play('stamp-heavy')).toBe(true);
+    s.advance(200);
+    expect(s.engine.play('division-bell')).toBe(true);
+    expect(s.ctx.sources.filter((x) => x.output === s.bell())).toHaveLength(2);
+  });
+
+  it('holds the bell slot while it decodes, so a double trigger rings once', async () => {
+    const s = setup();
+    s.engine.unlock();
+    expect(s.engine.play('division-bell')).toBe(true);
+    expect(s.engine.play('division-bell')).toBe(false);
+    await flush();
+    expect(s.ctx.sources).toHaveLength(1);
+  });
+
+  it('fetches only the sounds it is asked to prepare', () => {
+    const s = setup();
+    s.engine.prepare(['click']);
+    expect(s.fetchBytes.mock.calls.map(([u]) => u)).toEqual(['c.wav']);
+    s.engine.prepare(['whoosh']);
+    expect(s.fetchBytes).not.toHaveBeenCalledWith('b.mp3');
+  });
+
+  it('stays silent for a sound with no source', async () => {
+    const s = setup({ sources: { click: 'c.wav' } });
+    await ready(s);
+    expect(s.fetchBytes).toHaveBeenCalledTimes(1);
+    expect(s.engine.play('stamp')).toBe(true);
+    await flush();
+    expect(s.ctx.sources).toHaveLength(0);
   });
 });

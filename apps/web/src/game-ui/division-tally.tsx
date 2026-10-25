@@ -4,8 +4,12 @@ import { PoliticianLink } from '../components/politician-bits';
 import { formatSimDate } from '../lib/format';
 import { CountUp } from './count-up';
 import { divisionAnnouncement, divisionVerdict } from './division-copy';
+import { SceneImage } from './location-backdrop';
 
 const voteLabel = { aye: 'Aye', no: 'No', abstain: 'Abstained' } as const;
+
+/** When the verdict stamp starts to land, after the lobbies have counted up. */
+export const VERDICT_STAMP_DELAY_MS = 1900;
 
 /**
  * A division result as a results reveal: the tellers' announcement with the two lobbies
@@ -33,7 +37,19 @@ export function DivisionTally({
     <article aria-label={`${division.billTitle}, ${division.stage}`} className="bg-ink text-paper">
       <div className="h-1.5 bg-whip" aria-hidden="true" />
       <div className="grid gap-6 p-5 md:p-7">
-        <header className="flex flex-wrap items-end justify-between gap-4">
+        {/*
+          The lobby band: the division lobby painting behind the header only, under a flat ink
+          veil (one solid layer, never a gradient), so the figures below stay on plain ink.
+        */}
+        <header className="relative isolate -mx-5 -mt-5 flex flex-wrap items-end justify-between gap-4 px-5 pt-10 pb-5 md:-mx-7 md:-mt-7 md:px-7 md:pt-14">
+          <div aria-hidden="true" className="absolute inset-0 -z-10 overflow-hidden bg-ink">
+            <SceneImage
+              scene="division-lobby"
+              loading="lazy"
+              sizes="(min-width: 78rem) 78rem, 100vw"
+            />
+            <div className="absolute inset-0 bg-ink/80" />
+          </div>
           <div className="flex min-w-0 flex-col-reverse">
             <H className="mt-2 font-display text-[clamp(1.8rem,3.5vw,2.8rem)] leading-[0.88] font-black text-paper-bright uppercase [font-stretch:68%]">
               {division.billTitle}
@@ -57,7 +73,8 @@ export function DivisionTally({
               tone={division.passed ? 'paper' : 'bad'}
               size="lg"
               angle={-5}
-              className="animate-stamp [animation-delay:1900ms]"
+              className="animate-stamp"
+              style={{ animationDelay: `${VERDICT_STAMP_DELAY_MS}ms` }}
             >
               {divisionVerdict(division)}
             </Stamp>

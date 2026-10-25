@@ -1,40 +1,28 @@
-import { useEffect, useId, useRef, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import studioLogo from '../../../assets/ccmg-logo-white.svg';
 import { AFFILIATION_NOTICE, COPYRIGHT, FICTION_NOTICE, STUDIO_NAME } from '../../boot/legal-copy';
-import { getPlatform } from '../../../platform';
 import { APP_VERSION } from '../copy';
 import { useBackKey } from '../keys';
 import { ScreenHeader } from '../screen-kit';
 
 /**
- * Opens via the platform adapter: a new tab on the web (no `window.opener`), the system browser on
- * desktop (a webview ignores `target="_blank"`). The attributes stay for semantics and fallbacks.
+ * Sound effect attributions (docs/brand/THIRD-PARTY-ASSETS.md). Plain text on purpose: no
+ * external links from the game. The music, the whoosh and the division bells are CheatCode Media
+ * Group's own and need no credit.
  */
-function ExternalLink({ href, children }: { href: string; children: ReactNode }) {
-  const open = (e: MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    void getPlatform().then((p) => p.openExternal(href));
-  };
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={open}
-      className="text-paper-bright underline decoration-paper/40 underline-offset-2 hover:decoration-paper-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-whip"
-    >
-      {children}
-    </a>
-  );
-}
+const AUDIO_CREDITS = [
+  '"Click" by complex_waveform (freesound.org), licensed under CC BY 4.0',
+  '"thick-stamp-nosub.wav" by newagesoup (freesound.org), licensed under CC BY 4.0',
+  '"Page Turn 01" by LilMati (freesound.org), CC0',
+  '"traditional stamp.wav" by I.fekry (freesound.org), CC0',
+] as const;
 
-/** Required attribution for the CC BY 4.0 click sample (docs/brand/THIRD-PARTY-ASSETS.md). */
 const AUDIO_CREDIT = (
-  <>
-    <ExternalLink href="https://freesound.org/s/213148/">{'"Click"'}</ExternalLink> by
-    complex_waveform (freesound.org) — licensed under{' '}
-    <ExternalLink href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</ExternalLink>
-  </>
+  <ul className="grid gap-1">
+    {AUDIO_CREDITS.map((line) => (
+      <li key={line}>{line}</li>
+    ))}
+  </ul>
 );
 
 const CREDITS: [string, ReactNode][] = [

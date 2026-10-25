@@ -6,9 +6,21 @@
  * had one), so browsers don't log an autoplay warning; bytes can be fetched before that. A sound
  * asked for before its buffer is decoded plays as soon as it is, if that is still timely.
  * Anything that throws (no Web Audio, decode failure) leaves the engine silently doing nothing.
+ * Anti-spam is per sound (`SFX_SPEC`): a minimum gap between starts, and long sounds (whoosh,
+ * bell) never overlap themselves.
  */
 
-export type SfxName = 'click' | 'whoosh';
+export type SfxName = 'click' | 'whoosh' | 'stamp-heavy' | 'stamp' | 'page-turn' | 'division-bell';
+
+/** Every sound the engine knows. */
+export const SFX_NAMES: readonly SfxName[] = [
+  'click',
+  'whoosh',
+  'stamp-heavy',
+  'stamp',
+  'page-turn',
+  'division-bell',
+];
 
 /** The slices of the Web Audio API the engine uses (fakes in tests). */
 export interface AudioParamLike {
@@ -40,7 +52,8 @@ export interface ContextLike {
 type GestureTarget = Pick<EventTarget, 'addEventListener' | 'removeEventListener'>;
 
 export interface SfxOptions {
-  sources: Record<SfxName, string>;
+  /** Where each sample lives; a sound with no source stays silent. */
+  sources: Partial<Record<SfxName, string>>;
   /** Returns null when Web Audio is unavailable. */
   createContext?: () => ContextLike | null;
   fetchBytes?: (url: string) => Promise<ArrayBuffer | null>;
@@ -72,14 +85,64 @@ export interface SfxEngine {
 export const CLICK_THROTTLE_MS = 40;
 /** ±3% playback-rate variation on the click. */
 export const CLICK_RATE_SPREAD = 0.03;
-/** Category levels under the effects volume: the click is quiet UI feedback. */
-export const CATEGORY_LEVEL = { ui: 0.35, transition: 0.6 } as const;
-const CATEGORY: Record<SfxName, keyof typeof CATEGORY_LEVEL> = {
-  click: 'ui',
-  whoosh: 'transition',
+/**
+ * Category levels under the effects volume. The click is quiet UI feedback; the page turn sits
+ * just above it (it often lands with a click); the bell is long and dense, so it stays under the
+ * stamps it leads into; the stamps are short verdicts; the whoosh is the one big transition.
+ */
+export const CATEGORY_LEVEL = {
+  ui: 0.35,
+  transition: 0.6,
+  stamp: 0.5,
+  paper: 0.4,
+  bell: 0.45,
+} as const;
+export type SfxCategory = keyof typeof CATEGORY_LEVEL;
+
+export interface SfxSpec {
+  category: SfxCategory;
+  /** Minimum time between two starts of this sound (anti-spam). */
+  minGapMs: number;
+  /** Never start again while the previous play is still sounding. */
+  exclusive: boolean;
+  /** How late a not-yet-decoded sound may still start. */
+  lateMs: number;
+  /** ± playback-rate variation, so repeats don't sound mechanical. */
+  rateSpread: number;
+}
+
+export const SFX_SPEC: Record<SfxName, SfxSpec> = {
+  click: {
+    category: 'ui',
+    minGapMs: CLICK_THROTTLE_MS,
+    exclusive: false,
+    lateMs: 150,
+    rateSpread: CLICK_RATE_SPREAD,
+  },
+  whoosh: { category: 'transition', minGapMs: 0, exclusive: true, lateMs: 600, rateSpread: 0 },
+  'stamp-heavy': {
+    category: 'stamp',
+    minGapMs: 300,
+    exclusive: false,
+    lateMs: 200,
+    rateSpread: 0.02,
+  },
+  stamp: { category: 'stamp', minGapMs: 200, exclusive: false, lateMs: 200, rateSpread: 0.04 },
+  'page-turn': {
+    category: 'paper',
+    minGapMs: 350,
+    exclusive: false,
+    lateMs: 400,
+    rateSpread: 0.03,
+  },
+  'division-bell': {
+    category: 'bell',
+    minGapMs: 0,
+    exclusive: true,
+    lateMs: 1000,
+    rateSpread: 0,
+  },
 };
-/** How late a not-yet-decoded sound may still start. */
-const LATE_MS: Record<SfxName, number> = { click: 150, whoosh: 600 };
 
 const GESTURES = ['pointerdown', 'keydown', 'touchstart'] as const;
 
@@ -120,20 +183,21 @@ export function createSfxEngine(options: SfxOptions): SfxEngine {
   let ctx: ContextLike | null = null;
   let failed = false;
   let master: GainLike | null = null;
-  const categories: Partial<Record<keyof typeof CATEGORY_LEVEL, GainLike>> = {};
+  const categories: Partial<Record<SfxCategory, GainLike>> = {};
   const bytes = new Map<SfxName, Promise<ArrayBuffer | null>>();
   const decoding = new Map<SfxName, Promise<BufferLike | null>>();
   const buffers = new Map<SfxName, BufferLike>();
   let enabled = true;
   let volume = 0.5;
-  let lastClick = -Infinity;
-  let whooshUntil = -Infinity;
+  /** Per sound: when it last started (anti-spam), and until when it is still sounding. */
+  const lastStart = new Map<SfxName, number>();
+  const busyUntil = new Map<SfxName, number>();
   let listening = false;
 
   function applyGains() {
     if (master) master.gain.value = enabled ? 1 : 0;
     for (const [cat, node] of Object.entries(categories)) {
-      node.gain.value = CATEGORY_LEVEL[cat as keyof typeof CATEGORY_LEVEL] * volume;
+      node.gain.value = CATEGORY_LEVEL[cat as SfxCategory] * volume;
     }
   }
 
@@ -147,7 +211,7 @@ export function createSfxEngine(options: SfxOptions): SfxEngine {
       }
       master = c.createGain();
       master.connect(c.destination);
-      for (const cat of Object.keys(CATEGORY_LEVEL) as (keyof typeof CATEGORY_LEVEL)[]) {
+      for (const cat of Object.keys(CATEGORY_LEVEL) as SfxCategory[]) {
         const g = c.createGain();
         g.connect(master);
         categories[cat] = g;
@@ -177,7 +241,8 @@ export function createSfxEngine(options: SfxOptions): SfxEngine {
     let p = bytes.get(name);
     if (!p) {
       try {
-        p = fetchBytes(options.sources[name]).catch(() => null);
+        const url = options.sources[name];
+        p = url ? fetchBytes(url).catch(() => null) : Promise.resolve(null);
       } catch {
         p = Promise.resolve(null);
       }
@@ -221,18 +286,19 @@ export function createSfxEngine(options: SfxOptions): SfxEngine {
 
   function start(name: SfxName, buf: BufferLike) {
     const c = ctx;
-    const out = categories[CATEGORY[name]];
+    const spec = SFX_SPEC[name];
+    const out = categories[spec.category];
     if (!c || !out) return;
     try {
       const src = c.createBufferSource();
       src.buffer = buf;
-      if (name === 'click') {
-        src.playbackRate.value = 1 + (random() * 2 - 1) * CLICK_RATE_SPREAD;
+      if (spec.rateSpread > 0) {
+        src.playbackRate.value = 1 + (random() * 2 - 1) * spec.rateSpread;
       }
       src.connect(out);
       src.start();
       const ms = (buf.duration * 1000) / src.playbackRate.value;
-      if (name === 'whoosh') whooshUntil = now() + ms;
+      if (spec.exclusive) busyUntil.set(name, now() + ms);
       options.onStart?.(name, ms);
     } catch {
       // A failed play is never worth surfacing.
@@ -254,25 +320,23 @@ export function createSfxEngine(options: SfxOptions): SfxEngine {
     },
     play(name) {
       if (!enabled || volume <= 0 || !supported || failed) return false;
+      const spec = SFX_SPEC[name];
       const t = now();
-      if (name === 'click') {
-        if (t - lastClick < CLICK_THROTTLE_MS) return false;
-      } else if (t < whooshUntil) {
-        return false;
-      }
+      if (t - (lastStart.get(name) ?? -Infinity) < spec.minGapMs) return false;
+      if (spec.exclusive && t < (busyUntil.get(name) ?? -Infinity)) return false;
       const c = ensureContext();
       if (!c) return false;
       resume();
-      if (name === 'click') lastClick = t;
+      lastStart.set(name, t);
       const buf = buffers.get(name);
       if (buf) {
         start(name, buf);
         return true;
       }
-      // Not decoded yet: hold the slot (no overlapping whoosh) and play if it arrives in time.
-      if (name === 'whoosh') whooshUntil = t + LATE_MS.whoosh;
+      // Not decoded yet: hold the slot (no overlap) and play if it arrives in time.
+      if (spec.exclusive) busyUntil.set(name, t + spec.lateMs);
       void decode(name).then((b) => {
-        if (b && enabled && now() - t <= LATE_MS[name]) start(name, b);
+        if (b && enabled && now() - t <= spec.lateMs) start(name, b);
       });
       return true;
     },

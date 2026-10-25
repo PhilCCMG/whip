@@ -25,7 +25,9 @@
     "db:generate": "pnpm --filter @whip/api run db:generate",
     "cf-typegen": "pnpm --filter @whip/api run cf-typegen",
     "desktop:release": "node scripts/desktop-release.mjs",
-    "desktop:release:local": "node scripts/desktop-release.mjs local"
+    "desktop:release:local": "node scripts/desktop-release.mjs local",
+    "audio:build": "node scripts/build-audio.mjs",
+    "images:build": "node scripts/build-images.mjs"
   },
   "devDependencies": {
     "@whip/config": "workspace:*",

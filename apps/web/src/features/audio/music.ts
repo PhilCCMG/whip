@@ -1,5 +1,6 @@
 /**
- * Menu music: one looping track, faded in on the title/menu screens and out when a career opens.
+ * Music: one looping track per controller, faded in while its screen is up and out when it goes
+ * (the menu track on the title/menu screens, the career track inside a career).
  *
  * Browsers block audible autoplay until the page has had a user gesture, so a refused `play()`
  * parks the request and retries on the next pointer or key press. The desktop shell allows
@@ -23,6 +24,8 @@ export interface MusicOptions {
   createAudio?: () => AudioLike;
   /** Where gesture listeners go (window in the app). */
   gestureTarget?: Pick<EventTarget, 'addEventListener' | 'removeEventListener'> | null;
+  /** This track's level relative to the music volume (1 = the menu track). */
+  gain?: number;
   fadeMs?: number;
   stepMs?: number;
 }
@@ -66,7 +69,8 @@ export function createMusicController(options: MusicOptions): MusicController {
   let duckFactor = 1;
   let timer: ReturnType<typeof setInterval> | null = null;
 
-  const level = () => (wanted && enabled ? volume * duckFactor : 0);
+  const gain = Math.min(1, Math.max(0, options.gain ?? 1));
+  const level = () => (wanted && enabled ? volume * gain * duckFactor : 0);
 
   function ensure(): AudioLike {
     if (!audio) {

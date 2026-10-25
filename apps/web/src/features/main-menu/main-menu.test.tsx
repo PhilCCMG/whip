@@ -350,39 +350,24 @@ describe('menu sounds', () => {
     expect(click).toHaveBeenCalledTimes(2);
   });
 
-  it('credits the click sample with working licence and source links', async () => {
+  it('credits the sound effects in plain text, with no external links', async () => {
     renderApp('/?screen=credits');
     await screen.findByRole('heading', { name: 'Credits' });
-    const licence = screen.getByRole('link', { name: 'CC BY 4.0' });
-    expect(licence).toHaveAttribute('href', 'https://creativecommons.org/licenses/by/4.0/');
-    expect(licence).toHaveAttribute('target', '_blank');
-    expect(licence.getAttribute('rel')).toContain('noopener');
-    expect(screen.getByRole('link', { name: '"Click"' })).toHaveAttribute(
-      'href',
-      'https://freesound.org/s/213148/',
-    );
-    expect(licence.closest('dd')).toHaveTextContent(
-      '"Click" by complex_waveform (freesound.org) — licensed under CC BY 4.0',
-      { normalizeWhitespace: false },
-    );
-  });
-
-  it('opens credit links through the platform adapter', async () => {
-    const user = userEvent.setup();
-    const open = vi.spyOn(window, 'open').mockReturnValue(null);
-    try {
-      renderApp('/?screen=credits');
-      await user.click(await screen.findByRole('link', { name: 'CC BY 4.0' }));
-      await waitFor(() =>
-        expect(open).toHaveBeenCalledWith(
-          'https://creativecommons.org/licenses/by/4.0/',
-          '_blank',
-          'noopener',
-        ),
-      );
-      expect(open).toHaveBeenCalledOnce();
-    } finally {
-      open.mockRestore();
-    }
+    const audio = screen.getByText('Audio', { selector: 'dt' }).nextElementSibling as HTMLElement;
+    const lines = within(audio)
+      .getAllByRole('listitem')
+      .map((li) => li.textContent);
+    expect(lines).toEqual([
+      '"Click" by complex_waveform (freesound.org), licensed under CC BY 4.0',
+      '"thick-stamp-nosub.wav" by newagesoup (freesound.org), licensed under CC BY 4.0',
+      '"Page Turn 01" by LilMati (freesound.org), CC0',
+      '"traditional stamp.wav" by I.fekry (freesound.org), CC0',
+    ]);
+    // Nothing on the credits screen leaves the game.
+    expect(
+      screen.queryAllByRole('link').filter((a) => /^https?:/.test(a.getAttribute('href') ?? '')),
+    ).toEqual([]);
+    // The music, whoosh and bells are the studio's own.
+    expect(audio).not.toHaveTextContent(/whoosh|bell|music/i);
   });
 });

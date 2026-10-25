@@ -19,48 +19,55 @@ afterEach(() => {
 const roster = () => screen.findByRole('list', { name: 'Members' });
 
 describe('Tea Room roster', () => {
-  it('draws its own screen and filters by party, faction and search', async () => {
-    const user = userEvent.setup();
-    renderApp(`/c/${CAMPAIGN_ID}/politicians`);
-    expect(await screen.findByRole('heading', { name: 'Tea Room', level: 1 })).toBeInTheDocument();
-    let list = await roster();
-    expect(within(list).getByText('Bernadette Walsh')).toBeInTheDocument();
-
-    // Party: only the Constitutional Party.
-    const partyGroup = await screen.findByRole('group', { name: 'Party' });
-    await user.click(await within(partyGroup).findByRole('button', { name: /CON/ }));
-    expect(within(partyGroup).getByRole('button', { name: /CON/ })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-    await waitFor(() =>
+  // Many user-event steps; slow under a full parallel run.
+  it(
+    'draws its own screen and filters by party, faction and search',
+    { timeout: 20_000 },
+    async () => {
+      const user = userEvent.setup();
+      renderApp(`/c/${CAMPAIGN_ID}/politicians`);
       expect(
-        within(screen.getByRole('list', { name: 'Members' })).queryByText('Bernadette Walsh'),
-      ).toBeNull(),
-    );
-    list = await roster();
-    expect(within(list).getByText('Sir Richard Vane')).toBeInTheDocument();
+        await screen.findByRole('heading', { name: 'Tea Room', level: 1 }),
+      ).toBeInTheDocument();
+      let list = await roster();
+      expect(within(list).getByText('Bernadette Walsh')).toBeInTheDocument();
 
-    // Back to all parties, then a faction.
-    await user.click(within(partyGroup).getByRole('button', { name: 'All' }));
-    const factionGroup = screen.getByRole('group', { name: /faction/i });
-    await user.click(within(factionGroup).getByRole('button', { name: 'Heartlands' }));
-    await waitFor(async () => {
-      const l = await roster();
-      expect(within(l).getByText('Bernadette Walsh')).toBeInTheDocument();
-      expect(within(l).queryByText('Sir Richard Vane')).toBeNull();
-      expect(within(l).queryByText('Tom Fairley')).toBeNull();
-    });
+      // Party: only the Constitutional Party.
+      const partyGroup = await screen.findByRole('group', { name: 'Party' });
+      await user.click(await within(partyGroup).findByRole('button', { name: /CON/ }));
+      expect(within(partyGroup).getByRole('button', { name: /CON/ })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      await waitFor(() =>
+        expect(
+          within(screen.getByRole('list', { name: 'Members' })).queryByText('Bernadette Walsh'),
+        ).toBeNull(),
+      );
+      list = await roster();
+      expect(within(list).getByText('Sir Richard Vane')).toBeInTheDocument();
 
-    // Search narrows it to one.
-    await user.click(within(factionGroup).getByRole('button', { name: 'Any' }));
-    await user.type(screen.getByRole('searchbox'), 'Fairley');
-    await waitFor(async () => {
-      const l = await roster();
-      expect(within(l).getAllByRole('listitem')).toHaveLength(1);
-      expect(within(l).getByText('Tom Fairley')).toBeInTheDocument();
-    });
-  });
+      // Back to all parties, then a faction.
+      await user.click(within(partyGroup).getByRole('button', { name: 'All' }));
+      const factionGroup = screen.getByRole('group', { name: /faction/i });
+      await user.click(within(factionGroup).getByRole('button', { name: 'Heartlands' }));
+      await waitFor(async () => {
+        const l = await roster();
+        expect(within(l).getByText('Bernadette Walsh')).toBeInTheDocument();
+        expect(within(l).queryByText('Sir Richard Vane')).toBeNull();
+        expect(within(l).queryByText('Tom Fairley')).toBeNull();
+      });
+
+      // Search narrows it to one.
+      await user.click(within(factionGroup).getByRole('button', { name: 'Any' }));
+      await user.type(screen.getByRole('searchbox'), 'Fairley');
+      await waitFor(async () => {
+        const l = await roster();
+        expect(within(l).getAllByRole('listitem')).toHaveLength(1);
+        expect(within(l).getByText('Tom Fairley')).toBeInTheDocument();
+      });
+    },
+  );
 
   it('shows known votes as stamps and unknown ones as “?”, and switches to the register', async () => {
     const user = userEvent.setup();

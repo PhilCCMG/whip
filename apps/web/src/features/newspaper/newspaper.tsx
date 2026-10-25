@@ -5,6 +5,7 @@ import { usePolitician } from '../../api/hooks';
 import type { Article, Newspaper, NewspaperSectionKey } from '../../api/types';
 import { formatLongDate } from '../../lib/format';
 import { campaignPath } from '../../lib/params';
+import { captionFor, mastheadArt, photoFor, type MastheadArt } from './art';
 import { headlineClass, paperKind, type PaperKind } from './paper-style';
 
 /** Sections that run down the narrow column beside the main stories. */
@@ -34,6 +35,33 @@ function Ear({ children, align }: { children: ReactNode; align: 'left' | 'right'
   );
 }
 
+/**
+ * The painted masthead: the image is the heading's content and its alt is the paper's title, so
+ * the heading keeps its name. width/height reserve the space (no layout shift); it scales down
+ * with its box and never past its own width.
+ */
+function TitleArt({
+  art,
+  title,
+  className,
+}: {
+  art: MastheadArt;
+  title: string;
+  className?: string;
+}) {
+  return (
+    <img
+      src={art.src}
+      width={art.width}
+      height={art.height}
+      alt={title}
+      decoding="async"
+      draggable={false}
+      className={cn('block h-auto w-full max-w-full select-none', className)}
+    />
+  );
+}
+
 export function PaperMasthead({
   paper,
   kind,
@@ -46,6 +74,8 @@ export function PaperMasthead({
   titleId?: string;
 }) {
   const { title, slogan, price, edition, date } = paper.masthead;
+  // Papers without painted art keep the type-set title below.
+  const art = mastheadArt(title);
   const dateline = (
     <div
       className={cn(
@@ -67,15 +97,23 @@ export function PaperMasthead({
     return (
       <header>
         <div className="flex items-stretch gap-3">
-          <div className="flex-1 bg-whip px-4 py-2 text-white [clip-path:polygon(0_0,100%_0,calc(100%-1.2rem)_100%,0_100%)]">
-            <h2
-              id={titleId}
-              className="font-display text-[clamp(2.2rem,5vw,3.8rem)] leading-[0.85] font-black uppercase [font-stretch:62%]"
-            >
-              {title}
-            </h2>
-          </div>
-          <div className="flex flex-col items-end justify-center gap-1 text-right">
+          {art ? (
+            <div className="flex min-w-0 flex-1 items-center">
+              <h2 id={titleId} className="w-full max-w-[36rem]">
+                <TitleArt art={art} title={title} />
+              </h2>
+            </div>
+          ) : (
+            <div className="flex-1 bg-whip px-4 py-2 text-white [clip-path:polygon(0_0,100%_0,calc(100%-1.2rem)_100%,0_100%)]">
+              <h2
+                id={titleId}
+                className="font-display text-[clamp(2.2rem,5vw,3.8rem)] leading-[0.85] font-black uppercase [font-stretch:62%]"
+              >
+                {title}
+              </h2>
+            </div>
+          )}
+          <div className="flex shrink-0 flex-col items-end justify-center gap-1 text-right">
             <span className="bg-ink px-2 py-1 font-display text-2xl leading-none font-black text-paper-bright [font-stretch:70%]">
               {price}
             </span>
@@ -92,16 +130,23 @@ export function PaperMasthead({
   if (kind === 'record') {
     return (
       <header>
-        <div aria-hidden="true" className="h-[5px] bg-ink" />
+        {/* The painted Gazette title brings its own double rules. */}
+        {!art && <div aria-hidden="true" className="h-[5px] bg-ink" />}
         <div className="flex items-center gap-3 py-2">
           <Ear align="left">{edition}</Ear>
           <div className="min-w-0 flex-1 text-center">
-            <h2
-              id={titleId}
-              className="font-display text-[clamp(1.5rem,3.4vw,2.7rem)] leading-none font-black tracking-[0.04em] uppercase [font-stretch:125%]"
-            >
-              {title}
-            </h2>
+            {art ? (
+              <h2 id={titleId} className="mx-auto w-full max-w-[40rem]">
+                <TitleArt art={art} title={title} />
+              </h2>
+            ) : (
+              <h2
+                id={titleId}
+                className="font-display text-[clamp(1.5rem,3.4vw,2.7rem)] leading-none font-black tracking-[0.04em] uppercase [font-stretch:125%]"
+              >
+                {title}
+              </h2>
+            )}
             <p className="mt-1 text-[11px] tracking-[0.18em] uppercase opacity-75">{slogan}</p>
           </div>
           <Ear align="right">Price {price}</Ear>
@@ -116,12 +161,18 @@ export function PaperMasthead({
     <header>
       <div className="flex items-end gap-3 border-b-2 border-ink pb-2">
         <Ear align="left">{slogan}</Ear>
-        <h2
-          id={titleId}
-          className="min-w-0 flex-1 text-center font-display text-[clamp(1.9rem,4.4vw,3.4rem)] leading-[0.9] font-extrabold tracking-[-0.025em] [font-stretch:100%]"
-        >
-          {title}
-        </h2>
+        {art ? (
+          <h2 id={titleId} className="min-w-0 flex-1">
+            <TitleArt art={art} title={title} className="mx-auto max-w-[36rem]" />
+          </h2>
+        ) : (
+          <h2
+            id={titleId}
+            className="min-w-0 flex-1 text-center font-display text-[clamp(1.9rem,4.4vw,3.4rem)] leading-[0.9] font-extrabold tracking-[-0.025em] [font-stretch:100%]"
+          >
+            {title}
+          </h2>
+        )}
         <Ear align="right">{price}</Ear>
       </div>
       <div className="mt-[3px]">{dateline}</div>
@@ -182,6 +233,7 @@ export function ArticleView({
   importance,
   className,
   showBody = true,
+  photo,
 }: {
   article: Article;
   kind: PaperKind;
@@ -191,12 +243,15 @@ export function ArticleView({
   importance?: number;
   className?: string;
   showBody?: boolean;
+  /** A picture under the headline (the lead story only), with the text wrapping beside it. */
+  photo?: ReactNode;
 }) {
   return (
-    <article className={cn('min-w-0', className)}>
+    <article className={cn('min-w-0', photo && 'flow-root', className)}>
       <Tag className={cn('text-balance', headlineClass(kind, importance ?? article.importance))}>
         {article.headline}
       </Tag>
+      {photo}
       {article.standfirst && (
         <p
           className={cn(
@@ -220,6 +275,35 @@ export function ArticleView({
       )}
       <Refs article={article} campaignId={campaignId} />
     </article>
+  );
+}
+
+/**
+ * The lead story's photo: chosen by story (`photoFor`), captioned deadpan, 640w and 1280w
+ * through srcset. Floats right of the text from md; full width above it on phones.
+ */
+export function LeadPhoto({ article }: { article: Article }) {
+  const photo = photoFor(article);
+  return (
+    <figure
+      data-photo={photo.key}
+      className="mt-3 mb-1 md:float-right md:mt-2 md:mb-2 md:ml-5 md:w-[46%] lg:w-[44%]"
+    >
+      <img
+        src={photo.src640}
+        srcSet={`${photo.src640} 640w, ${photo.src} 1280w`}
+        sizes="(min-width: 80rem) 26rem, (min-width: 48rem) 46vw, 100vw"
+        width={1280}
+        height={854}
+        alt={photo.alt}
+        loading="lazy"
+        decoding="async"
+        className="block aspect-[3/2] h-auto w-full bg-ink object-cover"
+      />
+      <figcaption className="mt-1.5 text-[11px] leading-snug italic opacity-80">
+        {captionFor(photo, article.id)}
+      </figcaption>
+    </figure>
   );
 }
 
@@ -502,6 +586,7 @@ export function NewspaperPage({
                 campaignId={campaignId}
                 as="h3"
                 importance={5}
+                photo={compact ? undefined : <LeadPhoto article={paper.lead} />}
               />
             </div>
             {stories.length > 0 && (

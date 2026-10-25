@@ -192,6 +192,29 @@ describe('Members’ induction (mock mode)', () => {
     expect(await screen.findByRole('dialog', { name: 'Paused' })).toBeInTheDocument();
   });
 
+  it('turns the page once per new step, not when the card is re-opened', async () => {
+    const pageTurn = vi.spyOn(uiSound, 'pageTurn').mockReturnValue(true);
+    const user = userEvent.setup();
+    await start();
+    const welcome = await card('welcome');
+    await waitFor(() => expect(pageTurn).toHaveBeenCalledTimes(1));
+
+    // Put away and brought back, then a resize: the same step, no new page.
+    await user.keyboard('{Escape}');
+    await user.click(
+      screen.getByRole('button', { name: /Show Bramley’s note \(Induction 1\/14\)/ }),
+    );
+    await card('welcome');
+    window.dispatchEvent(new Event('resize'));
+    expect(pageTurn).toHaveBeenCalledTimes(1);
+
+    // The next step is a new page.
+    await user.click(within(await card('welcome')).getByRole('button', { name: 'Got it' }));
+    await card('hud');
+    await waitFor(() => expect(pageTurn).toHaveBeenCalledTimes(2));
+    expect(welcome).not.toBeInTheDocument();
+  });
+
   it('asks before skipping, inside the card, then dismisses on the server', async () => {
     const user = userEvent.setup();
     const { id, backend } = await start();

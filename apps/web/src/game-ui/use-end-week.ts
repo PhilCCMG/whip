@@ -23,7 +23,8 @@ const hasBlockers = (b: EndWeekBlockers) => b.freeSlots > 0 || b.pendingEvents >
 
 /**
  * End-week state: request → (confirm if there are free slots or unanswered dispatches) → the
- * transition (whoosh) while the week resolves → the turn report. The shell renders the pieces.
+ * transition (heavy stamp + whoosh) while the week resolves → the turn report. The shell renders
+ * the pieces.
  */
 export function useEndWeek(campaignId: string, overview: CareerOverview | undefined) {
   const advance = useAdvance(campaignId);
@@ -34,6 +35,9 @@ export function useEndWeek(campaignId: string, overview: CareerOverview | undefi
   const start = useCallback(() => {
     if (!overview || advance.isPending) return;
     setConfirming(false);
+    // The week is ended: the heavy stamp (button, "End week anyway" or E), then the whoosh.
+    // Opening the confirm only clicks.
+    uiSound.stampHeavy();
     uiSound.whoosh();
     setTransition({ turn: overview.campaign.turn, started: performance.now() });
     advance.mutate(undefined, {

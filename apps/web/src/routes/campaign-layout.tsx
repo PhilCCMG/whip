@@ -6,6 +6,7 @@ import type { CareerOverview } from '../api/types';
 import { ActionPlanner } from '../components/action-planner';
 import { ErrorState, Loading } from '../components/states';
 import { TurnReportDialog } from '../components/turn-report';
+import { useCareerMusic } from '../features/audio/use-menu-music';
 import { uiSound, useClickSounds, useUiSoundPreload } from '../features/audio/use-ui-sound';
 import { UI as INDUCTION_COPY } from '../features/tutorial/copy';
 import { consumeTutorialEscape } from '../features/tutorial/store';
@@ -15,6 +16,7 @@ import { EndWeekButton, EndWeekConfirm, WeekTransition } from '../game-ui/end-we
 import { useEndWeek } from '../game-ui/use-end-week';
 import { GameScreenHeader } from '../game-ui/game-screen';
 import { HudBar, PlaceTabs } from '../game-ui/hud';
+import { LocationBackdrop } from '../game-ui/location-backdrop';
 import { END_WEEK_KEY, isEditable, modalOpen } from '../game-ui/keys';
 import { PauseMenu } from '../game-ui/pause-menu';
 import { PLACES, placeFor } from '../game-ui/places';
@@ -94,7 +96,9 @@ export function Component() {
 
   const rootRef = useRef<HTMLDivElement>(null);
   useClickSounds(rootRef);
-  useUiSoundPreload();
+  useUiSoundPreload('game');
+  // Backbench Ballet for the whole career: the layout stays mounted across tabs, so it never restarts.
+  useCareerMusic();
 
   // One capture-phase key handler for the shell, so it sees keys before any screen does and
   // can step aside for modals (planner, report, pause) that own their own keys.
@@ -181,6 +185,8 @@ export function Component() {
       ref={rootRef}
       className="relative isolate flex h-dvh flex-col overflow-hidden bg-desk text-paper"
     >
+      {/* The place itself, faded behind the panels: one painting per tab (09-game-ui §Art). */}
+      <LocationBackdrop scene={place.key} />
       <div inert={paused || !!endWeek.transition} className="flex min-h-0 flex-1 flex-col">
         <header className="relative z-20 shrink-0">
           <HudBar overview={overview} onMenu={() => setPaused(true)} />

@@ -18,8 +18,9 @@ objects lying on them (diary pages, letters, newspapers); red for the things tha
 - **No SaaS kit.** No rounded white cards with coloured left borders, no dashboard grid of
   identical panels, no pill badges. Hierarchy comes from type size, surface (ink vs paper) and
   rules, not from boxes.
-- **The painting is used sparingly**: as a screen's header band under a flat ink veil
-  (`bg-ink/86`, one solid layer). Never as a full-screen background in game.
+- **Paintings sit under flat ink.** The menu painting in a screen's header band, and each place's
+  own painting behind its screen, always under one solid ink layer (`bg-ink/86`; `bg-ink/80` for
+  a narrow band). Never a painting at full strength behind text (§13).
 - Texture comes from typography, rules, slashes, stamps and keycaps.
 
 ## 2. Tokens (`packages/ui/src/styles/tokens.css`)
@@ -82,6 +83,7 @@ Put size before leading when composing class strings.
 - `EndWeekButton`, `EndWeekConfirm`, `WeekTransition`, `useEndWeek`.
 - `PauseMenu`: reuses the main menu's `MenuList`, `QuitConfirm` and `SettingsScreen`.
 - `DivisionTally`, `CountUp`: results reveal.
+- `LocationBackdrop`, `SceneImage` (`location-backdrop.tsx`), `SCENES` (`scenes.ts`): the place paintings (§13).
 - `features/newspaper/`: `NewspaperPage`, `PaperMasthead`, `ArticleView`, `paperKind`.
 
 ## 5. The shell and HUD (`routes/campaign-layout.tsx`)
@@ -147,6 +149,9 @@ builds one from the plain headlines. Each title has its own style (`paperKind`):
 | The Daily Clarion | tabloid | red masthead block with a leaning edge, price box, reversed lead, capitals at 62–66%, black section bars, `paper-bright` |
 | The Westminster Gazette | record | widest spaced capitals between heavy/thin rules, centred section labels with rules, `paper-deep` |
 
+The three known papers print their painted masthead (an `<img>` inside the `h2`, alt = the
+title); the lead story carries one photo (§13). Edition, date, price and slogan stay as text.
+
 Mechanics are never left to the prose: the turn report puts **Your week** (stamped outcomes,
 capital change) as the insert, and the division tally as its own ink sheet after the paper.
 
@@ -166,11 +171,39 @@ number; the transition does not hold. Check `useReducedMotion()` for any JS-driv
 
 ## 10. Sound
 
-Use `use-ui-sound`. The shell root has `useClickSounds` (any button, link, tab or menu item ticks).
+Use `use-ui-sound` (`uiSound.*`); the engine is `features/audio/sfx.ts`. The shell root has
+`useClickSounds` (any button, link, tab or menu item ticks). Buttons whose action plays its own
+sound carry `data-sfx="off"` so they don't also click. Levels are mixer categories under the
+Effects volume; each sound also has a minimum gap, and the whoosh and bell never overlap
+themselves (`SFX_SPEC`).
 
-- **click:** tab switches (also via number keys), confirms, cancel, opening the planner via `P`.
-- **whoosh:** only two moments in the whole game: entering a career, and END WEEK starting the
-  transition. Buttons that whoosh carry `data-sfx="off"` so they don't also click.
+| Sound | Fires on | Category (level) |
+|---|---|---|
+| `click` | tab switches (also number keys), confirms, cancel, cursor moves, opening the END WEEK confirm | ui (0.35) |
+| `whoosh` | title → menu, entering a career, END WEEK starting the transition. Ducks music to 0.7 | transition (0.6) |
+| `stamp-heavy` | the week actually ending (END WEEK with nothing to confirm, **End week anyway**, or `E`); a division's verdict landing in the turn report | stamp (0.5) |
+| `stamp` | outcome stamps in *Your week*, on each `animate-stamp` landing: at most 3, ≥250ms apart (one under reduced motion); the induction's graduation stamp | stamp (0.5) |
+| `page-turn` | the turn report (the paper) opening; Bramley's card showing a *new* step (not re-render, chip re-open or resize) | paper (0.4) |
+| `division-bell` | the turn report's division being called, after the outcome stamps. Ducks music to 0.55 | bell (0.45) |
+
+The turn report's sequence is `reportSoundCues` (components/turn-report-sounds.ts), in step with
+the stamp delays and `VERDICT_STAMP_DELAY_MS`. Reduced motion: page, one stamp, bell, then the
+verdict once the bell ends. The chamber's division lists reopen past results silently.
+
+Preloading is lazy: the click first, the whoosh after first paint on the menu; the stamps, page
+turn and bell only once a career is open (`useUiSoundPreload('game')`). The title screen never
+fetches the bell.
+
+**Music** (`use-menu-music.ts`): the menu theme on the title/menu screens; *Backbench Ballet*
+inside a career (`campaign-layout`, so tab changes never restart it) at 0.8× the Music volume.
+Moving between menu and career crossfades (600ms each way, never both at full). Each track ships
+as WebM/Opus and MP3; `pickTrackSource` picks the WebM when `canPlayType('audio/webm;
+codecs="opus"')` answers. Music keeps playing under the pause menu.
+
+**New audio** goes in `apps/web/audio-src/` (masters) and through `scripts/build-audio.mjs`, which
+writes the compressed files to `apps/web/src/assets/audio/`. Never import or ship an uncompressed
+master. Credit third-party samples in plain text on the Credits screen (no external links) and in
+docs/brand/THIRD-PARTY-ASSETS.md.
 
 ## 11. Accessibility
 
@@ -197,3 +230,38 @@ first, then the division edition in a division week and the quiet one otherwise)
 mock calendar. When the narrow column outruns the news, back-page sections move up under the
 Politics column, then a house advert fills any gap that is left: never a blank sheet.
 The office briefing uses `compact` (four politics stories, no back pages).
+
+## 13. Art
+
+Painted illustrations in the menu painting's style (teal-black, vermilion, amber lamplight).
+Registries: `game-ui/scenes.ts` (`SCENES`) and `features/newspaper/art.ts`
+(`mastheadArt`, `PHOTOS`, `photoFor`).
+
+| Art | Where |
+|---|---|
+| `bg/office` `chamber` `tea-room` `party-hq` `archive` | `LocationBackdrop` in the shell, behind the current tab's screen (`main` scrolls over it) |
+| `bg/division-lobby` | behind the header band of every `DivisionTally` (turn report, Chamber division lists) |
+| `mastheads/*` | `PaperMasthead` for The Morning Whip, The Daily Clarion, The Westminster Gazette |
+| `news/*` | the lead story's photo (`LeadPhoto`; full paper only, not the compact office briefing) |
+
+- **Scrim rule.** A painting behind UI always sits under one flat ink layer: `bg-ink/86` for the
+  full-screen backdrop, `bg-ink/80` for the tally band. At those values even a white pixel
+  composites to a near-ink colour, so `paper/60` and up on it stays at WCAG AA (≥4.5:1), and
+  panels keep their own solid surfaces. No gradients, no vignette, no blur.
+- **Backdrops are decoration**: `aria-hidden`, empty alt, absolutely placed (no layout shift),
+  solid ink until loaded. `srcset` offers the 960w and full files, so narrow or low-DPR screens
+  fetch the small one. Only the current scene is in the DOM; a tab change fades the new painting
+  in over the old (240ms) once it has loaded, and swaps it outright under reduced motion.
+- **Mastheads** are images inside the heading with the paper's title as alt, sized by
+  width/height and `max-w-full` so they fit a 360px phone. A paper without art keeps the
+  type-set title.
+- **Lead photos** come from `photoFor`. The DTO has no story kind, so it matches the headline and
+  standfirst against a priority list (scandal and press → press-scrum, reshuffles and appointments
+  → reshuffle-door, plots, leaks and rebels → the-lobby, speeches, conference and leadership →
+  podium, local, campaign and by-elections → wet-hustings, bills and divisions →
+  commons-exterior), then the refs, and falls back to press-scrum. Each photo has a descriptive
+  alt and its own deadpan caption pool; the caption is chosen by a hash of the article id. To add
+  a photo, add it to `PHOTOS` and give it a rule.
+- **New art** goes in `apps/web/art-src/` (masters, git-ignored) and through
+  `node scripts/build-images.mjs` (`pnpm images:build`), which writes the WebP files to
+  `apps/web/src/assets/art/`. Never import or ship a raw PNG.

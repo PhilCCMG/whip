@@ -409,6 +409,12 @@ function CoachMark({ rect }: { rect: Rect }) {
 }
 
 function GraduationStamp({ onDone, until }: { onDone: () => void; until: number }) {
+  // Signed off: one stamp as it lands (or at once under reduced motion; it is just there).
+  const reduced = useReducedMotion();
+  useEffect(() => {
+    const t = window.setTimeout(() => uiSound.stamp(), reduced ? 0 : 110);
+    return () => window.clearTimeout(t);
+  }, [reduced]);
   useEffect(() => {
     const t = window.setTimeout(onDone, Math.max(0, until - Date.now()));
     return () => window.clearTimeout(t);
@@ -484,6 +490,16 @@ export function TutorialLayer({ controller }: { controller: TutorialController }
   useEffect(() => {
     useTutorialSession.setState({ confirmingSkip: false });
   }, [stepId]);
+
+  // Bramley turns the page when his card first shows a step: not on re-render, re-opening the
+  // chip, a resize or the card moving into a modal.
+  const cardShown = !!step && !collapsed && (onDesk || (inModal && !!scan.slot));
+  const turnedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!cardShown || !stepId || turnedFor.current === stepId) return;
+    turnedFor.current = stepId;
+    uiSound.pageTurn();
+  }, [cardShown, stepId]);
 
   const collapse = () => {
     if (!step) return;

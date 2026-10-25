@@ -133,3 +133,65 @@ describe('music ducking', () => {
     expect(audio.volume).toBeCloseTo(0.5);
   });
 });
+
+describe('switching tracks', () => {
+  it('plays a quieter track at its own gain of the music volume', async () => {
+    const audio = fakeAudio();
+    const music = createMusicController({
+      src: 'career.webm',
+      gain: 0.8,
+      createAudio: () => audio,
+      gestureTarget: null,
+    });
+    music.setVolume(0.5);
+    music.enter();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(audio.volume).toBeCloseTo(0.4);
+  });
+
+  it('crossfades menu → career without both ever at full, and resumes rather than restarts', async () => {
+    const menuAudio = fakeAudio();
+    const careerAudio = fakeAudio();
+    const menu = createMusicController({
+      src: 'menu.webm',
+      createAudio: () => menuAudio,
+      gestureTarget: null,
+    });
+    const career = createMusicController({
+      src: 'career.webm',
+      gain: 0.8,
+      createAudio: () => careerAudio,
+      gestureTarget: null,
+    });
+    for (const m of [menu, career]) m.setVolume(0.5);
+    menu.enter();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(menuAudio.volume).toBeCloseTo(0.5);
+
+    // The menu screen unmounts and the career layout mounts in the same commit.
+    menu.leave();
+    career.enter();
+    let peakTogether = 0;
+    for (let t = 0; t < 700; t += 30) {
+      await vi.advanceTimersByTimeAsync(30);
+      peakTogether = Math.max(
+        peakTogether,
+        Math.min(menuAudio.volume / 0.5, careerAudio.volume / 0.4),
+      );
+    }
+    // At the crossing point each is about half way; never both near full.
+    expect(peakTogether).toBeLessThan(0.6);
+    expect(menuAudio.paused).toBe(true);
+    expect(menuAudio.volume).toBe(0);
+    expect(careerAudio.volume).toBeCloseTo(0.4);
+
+    // Back to the menu: the same element plays on from where it paused (no reload).
+    career.leave();
+    menu.enter();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(menuAudio.loads).toBe(0);
+    expect(menuAudio.src).toBe('menu.webm');
+    expect(menuAudio.volume).toBeCloseTo(0.5);
+    expect(careerAudio.paused).toBe(true);
+  });
+});

@@ -15,6 +15,13 @@ import { paperFromHeadlines } from '../features/newspaper/paper-style';
 import { KIND_LABEL } from '../features/office/model';
 import { DispatchFrame, DispatchTitle } from '../game-ui/dispatch-frame';
 import { DivisionTally } from '../game-ui/division-tally';
+import { useSoundCues } from '../features/audio/cues';
+import { useReducedMotion } from '../stores/settings-store';
+import {
+  OUTCOME_STAMP_DELAY_MS,
+  OUTCOME_STAMP_STEP_MS,
+  reportSoundCues,
+} from './turn-report-sounds';
 import { formatSimDate, signed } from '../lib/format';
 
 const STAMP: Record<ActionOutcome['status'], { text: string; tone: 'good' | 'warning' | 'bad' }> = {
@@ -49,7 +56,7 @@ function Outcome({ outcome, index }: { outcome: ActionOutcome; index: number }) 
           size="sm"
           angle={index % 2 ? 4 : -5}
           className="shrink-0 animate-stamp"
-          style={{ animationDelay: `${300 + index * 260}ms` }}
+          style={{ animationDelay: `${OUTCOME_STAMP_DELAY_MS + index * OUTCOME_STAMP_STEP_MS}ms` }}
         >
           {stamp.text}
         </Stamp>
@@ -183,6 +190,9 @@ export function TurnReportDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const continueRef = useRef<HTMLButtonElement>(null);
+  const reduced = useReducedMotion();
+  // The paper turns, the stamps land, the bell rings: once per opening, in step with the reveal.
+  useSoundCues(report ? reportSoundCues(report, reduced) : [], open && !!report);
   if (!report) return null;
   return (
     <DispatchFrame
