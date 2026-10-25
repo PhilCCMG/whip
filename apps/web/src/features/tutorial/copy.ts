@@ -29,7 +29,7 @@ export const LINES: Record<TutorialStepId, string> = {
     'The papers. Read Your Week first: everything you did is stamped, whatever the leader writers make of it. Continue when you’ve had enough.',
   fog: 'The whips’ board says “unknown” because nobody tells the whips the truth. Go and ask people. Over tea, ideally.',
   'find-out':
-    'A meeting tells you how a colleague means to vote. Plan one with anyone marked “?”; Find out does it in one click.',
+    'Nobody tells you how they’ll vote until you ask. Plan a meeting with any colleague and you’ll learn where they stand. In the Tea Room, a “?” by a name means nobody has asked yet.',
   relationships:
     'Open anyone’s file. Trust, respect and affinity run both ways, and colleagues remember everything, chiefly what you’d rather they didn’t.',
   factions:

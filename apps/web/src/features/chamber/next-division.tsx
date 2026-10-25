@@ -97,10 +97,13 @@ function WavererChip({
   w,
   campaignId,
   onFindOut,
+  tutorialTarget = false,
 }: {
   w: DivisionForecast['waverers'][number];
   campaignId: string;
   onFindOut: () => void;
+  /** Marks this chip's Find out button for the induction ("find-out" step). */
+  tutorialTarget?: boolean;
 }) {
   const unknown = w.known === 'unknown';
   return (
@@ -119,6 +122,7 @@ function WavererChip({
         <button
           type="button"
           onClick={onFindOut}
+          data-tutorial={tutorialTarget ? 'find-out' : undefined}
           aria-label={`Find out how ${w.name} will vote: plan a meeting`}
           className="flex h-7 shrink-0 cursor-pointer items-center gap-1.5 px-2 text-[11px] font-black tracking-[0.06em] text-paper-bright uppercase outline-1 -outline-offset-1 outline-paper/40 outline-dashed hover:bg-paper-bright hover:text-ink focus-visible:outline-2 focus-visible:outline-paper-bright"
         >
@@ -215,6 +219,7 @@ export function NextDivision({
   const knownWaverers = [...division.waverers].sort(
     (a, b) => Number(a.known === 'unknown') - Number(b.known === 'unknown'),
   );
+  const firstUnknownId = knownWaverers.find((w) => w.known === 'unknown')?.id;
 
   return (
     <section aria-labelledby={`nd-${division.id}`} className="bg-ink text-paper">
@@ -279,6 +284,7 @@ export function NextDivision({
                     key={w.id}
                     w={w}
                     campaignId={campaignId}
+                    tutorialTarget={w.id === firstUnknownId}
                     onFindOut={() =>
                       openPlanner({
                         kind: 'meet_politician',

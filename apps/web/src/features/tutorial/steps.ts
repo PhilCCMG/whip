@@ -159,7 +159,9 @@ export const STEPS: readonly TutorialStep[] = [
     requires: ['fog'],
     shows: deskOrPlanner,
     needsParliament: true,
-    targets: ['action-meet_politician', 'waverers', 'place-chamber'],
+    // The planner's Meet action; else a waverer's Find out button; else the Tea Room roster,
+    // where every unasked colleague shows a "?"; else the Tea Room tab.
+    targets: ['action-meet_politician', 'find-out', 'roster', 'place-tea-room'],
     complete: (f, { baseline }) =>
       (f.forecastUnknown !== null &&
         baseline.forecastUnknown !== null &&
