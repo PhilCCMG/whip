@@ -28,6 +28,7 @@ function Dispatch({
       tone="bright"
       tilt={index % 2 === 0 ? 'left' : 'right'}
       aria-labelledby={titleId}
+      data-tutorial={index === 0 ? 'dispatch' : undefined}
       className="outline-2 outline-ink"
     >
       <div className="flex items-center justify-between gap-3 bg-ink px-4 py-2 text-paper-bright">

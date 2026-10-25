@@ -97,6 +97,8 @@ export function Diary({ overview }: { overview: CareerOverview }) {
             onClick={() => openPlanner()}
             disabled={free <= 0}
             aria-label="Plan action"
+            data-tutorial="plan-action"
+            data-tutorial-avoid=""
             aria-keyshortcuts="P"
             className="flex h-11 cursor-pointer items-center gap-2.5 bg-paper-bright px-4 font-display text-xl font-black text-ink uppercase [font-stretch:70%] hover:bg-white focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-whip disabled:cursor-not-allowed disabled:opacity-50"
           >

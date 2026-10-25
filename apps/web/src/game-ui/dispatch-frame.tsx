@@ -94,7 +94,12 @@ export function DispatchFrame({
               </div>
             </div>
           )}
-          <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">{children}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+            {size !== 'full' && <div data-tutorial-slot="" />}
+            {children}
+          </div>
+          {/* The induction docks its card here while this modal is open (features/tutorial). */}
+          {size === 'full' && <div data-tutorial-slot="" className="shrink-0" />}
           {footer && (
             <div className="shrink-0 border-t-2 border-paper/15 px-5 py-3 md:px-6">{footer}</div>
           )}

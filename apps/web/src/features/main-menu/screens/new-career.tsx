@@ -17,7 +17,7 @@ import { CandidateCard } from '../candidate-card';
 import { GENDERS, PRESETS, SEAT, STRENGTHS, type Player } from '../copy';
 import { useBackKey } from '../keys';
 import { primaryButton } from '../styles';
-import { OptionTiles, ScreenHeader } from '../screen-kit';
+import { OptionTiles, ScreenHeader, ToggleTile } from '../screen-kit';
 
 const STEPS = [
   { id: 'member', label: 'Member' },
@@ -77,6 +77,7 @@ export function NewCareerScreen({ onBack }: { onBack: () => void }) {
     strength: 'negotiation',
     ideologyPreset: 'moderniser',
   });
+  const [induction, setInduction] = useState(true);
   const set = <K extends keyof Player>(k: K, v: Player[K]) => setPlayer((p) => ({ ...p, [k]: v }));
   const firstRef = useRef<HTMLInputElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -126,6 +127,7 @@ export function NewCareerScreen({ onBack }: { onBack: () => void }) {
       {
         name: name.trim(),
         scenarioKey: 'first_weeks',
+        tutorial: induction,
         player: { ...player, firstName: player.firstName.trim(), lastName: player.lastName.trim() },
       },
       {
@@ -328,6 +330,17 @@ export function NewCareerScreen({ onBack }: { onBack: () => void }) {
                 The Housing Delivery Bill reaches second reading in four weeks. The whips want your
                 vote, your faction wants your voice, and {SEAT.name} wants its green belt.
               </p>
+              <ToggleTile
+                label="Take the Members’ induction"
+                blurb={
+                  induction
+                    ? 'Ken Bramley, Father of the House, shows you round. Skip it whenever you like.'
+                    : 'You know where the tea room is. Bramley can still be called from the menu.'
+                }
+                checked={induction}
+                onChange={setInduction}
+                className="max-w-[30rem]"
+              />
               {apiError && (
                 <p role="alert" className="text-sm font-semibold text-paper-bright">
                   <span

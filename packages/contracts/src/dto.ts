@@ -94,6 +94,8 @@ export const CreateCampaignRequestSchema = z.object({
     strength: z.enum(['oratory', 'negotiation', 'intrigue', 'policy']),
     ideologyPreset: z.enum(['moderniser', 'heartlands', 'independent']),
   }),
+  /** Start with the Members' induction tutorial (docs/architecture/11-tutorial.md). Default true. */
+  tutorial: z.boolean().optional(),
 });
 export type CreateCampaignRequest = z.infer<typeof CreateCampaignRequestSchema>;
 
@@ -625,3 +627,28 @@ export const MeResponseSchema = z.object({
   user: z.object({ id: IdSchema, email: z.string().nullable(), name: z.string().nullable() }),
   preferences: z.record(z.string(), z.unknown()),
 });
+
+/* ----------------------------------------------------------------------------
+ * Tutorial (docs/architecture/11-tutorial.md): UI metadata, outside the simulation
+ * ------------------------------------------------------------------------- */
+
+export const TutorialStepIdSchema = z.string().regex(/^[a-z0-9-]{1,40}$/);
+
+export const TutorialStateSchema = z.object({
+  enabled: z.boolean(),
+  completed: z.array(TutorialStepIdSchema).max(100),
+  dismissed: z.boolean(),
+  updatedAt: z.string().nullable(),
+});
+export type TutorialState = z.infer<typeof TutorialStateSchema>;
+
+/** PUT body. `completeSteps` merges as a set union; `reset` clears progress and re-enables. */
+export const TutorialUpdateSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    completeSteps: z.array(TutorialStepIdSchema).max(50).optional(),
+    dismissed: z.boolean().optional(),
+    reset: z.boolean().optional(),
+  })
+  .strict();
+export type TutorialUpdate = z.infer<typeof TutorialUpdateSchema>;

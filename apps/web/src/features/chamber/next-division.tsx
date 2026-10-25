@@ -242,7 +242,7 @@ export function NextDivision({
           </Plate>
         </header>
 
-        <div className="grid gap-2">
+        <div className="grid gap-2" data-tutorial="forecast">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
             <h4 className="text-[11px] font-black tracking-[0.12em] text-paper-bright uppercase">
               The whips’ forecast
@@ -264,7 +264,7 @@ export function NextDivision({
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <div>
+          <div data-tutorial="waverers">
             <h4 className="mb-1 text-[11px] font-black tracking-[0.12em] text-paper-bright uppercase">
               Waverers you know of ({division.waverers.length})
             </h4>
@@ -292,7 +292,7 @@ export function NextDivision({
             )}
           </div>
 
-          <div className="grid content-start gap-3">
+          <div className="grid content-start gap-3" data-tutorial="your-vote">
             <h4 className="text-[11px] font-black tracking-[0.12em] text-paper-bright uppercase">
               Your vote
             </h4>

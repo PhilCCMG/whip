@@ -70,6 +70,7 @@ function ActionCard({
       type="button"
       disabled={locked}
       onClick={onChoose}
+      data-tutorial={`action-${item.kind}`}
       className={cn(
         'group relative flex h-full w-full cursor-pointer flex-col gap-2 p-4 text-left',
         'focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-whip',

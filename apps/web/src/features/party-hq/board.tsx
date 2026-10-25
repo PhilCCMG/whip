@@ -39,6 +39,7 @@ export function LeaderPlate({
   return (
     <Link
       to={toProfile(campaignId, person.id)}
+      data-tutorial-avoid=""
       className="group flex min-w-0 items-center gap-3 bg-ink p-3 text-paper outline-1 -outline-offset-1 outline-paper/15 hover:bg-moss-900 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-paper-bright"
     >
       <Portrait seed={person.id} partyColour={colour} size="lg" className="shrink-0" />

@@ -98,7 +98,7 @@ export function Component() {
           </div>
         </section>
 
-        <section aria-labelledby="camps-title" className="grid gap-4">
+        <section aria-labelledby="camps-title" className="grid gap-4" data-tutorial="factions">
           <DeskHeading
             id="camps-title"
             title="Rival camps"

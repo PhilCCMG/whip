@@ -23,7 +23,7 @@ do/            CampaignDO class: thin adapter → campaign service + SQLite stor
 | GET | `/api/v1/health` | Unauthenticated. Reports version, build sha, `simulationVersion` |
 | GET | `/api/v1/me` | Current user + preferences |
 | GET | `/api/v1/campaigns` | Paginated (`cursor`, `limit ≤ 50`) campaign summaries |
-| POST | `/api/v1/campaigns` | `{ name, scenarioKey, player: { firstName, lastName, … }, seed? }` → `201` summary |
+| POST | `/api/v1/campaigns` | `{ name, scenarioKey, player: { firstName, lastName, … }, seed?, tutorial? }` → `201` summary. `tutorial` (default `true`) sets the initial tutorial `enabled` |
 | GET | `/api/v1/campaigns/:id` | Summary (from D1 index) |
 | DELETE | `/api/v1/campaigns/:id` | Soft delete |
 | GET | `/api/v1/campaigns/:id/state` | **Career overview** DTO: player profile, standing, diary, pending events, notifications, briefing. Not the whole world |
@@ -37,6 +37,8 @@ do/            CampaignDO class: thin adapter → campaign service + SQLite stor
 | GET | `/api/v1/campaigns/:id/politicians/:pid` | Full profile incl. relationship *to/from the player*, career, positions |
 | GET | `/api/v1/campaigns/:id/parliament` | House composition, bills, upcoming divisions, last results |
 | GET | `/api/v1/campaigns/:id/party` | Player's party: leadership, factions, unity, whip |
+| GET | `/api/v1/campaigns/:id/tutorial` | `TutorialState` (doc 11). Campaigns with nothing stored read as disabled. No ETag; `Cache-Control: no-store` |
+| PUT | `/api/v1/campaigns/:id/tutorial` | `TutorialUpdate` → `TutorialState`. `completeSteps` merges as a set union, `reset` clears progress and re-enables. No `Idempotency-Key`/`expectedRevision`; stored in the DO `meta` table, so it never bumps the revision or ETag |
 
 *Implementation note (Stage C):* restoring an earlier revision ("load autosave", doc 04 §4) exists as
 the Campaign DO RPC `restore()` and the `CampaignUseCases.restore` application method, but has **no HTTP

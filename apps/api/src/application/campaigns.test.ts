@@ -54,6 +54,8 @@ class FakeDoGateway implements CampaignDoGateway {
       advance: (i) => s.advance(i),
       history: (q, rev) => s.history(q, rev),
       restore: (i) => s.restore(i),
+      getTutorial: () => s.getTutorial(),
+      updateTutorial: (u) => s.updateTutorial(u),
       destroy: async () => {
         if (this.failDestroy > 0) {
           this.failDestroy -= 1;

@@ -6,12 +6,13 @@ import {
   useQueryClient,
   type QueryClient,
 } from '@tanstack/react-query';
-import type { CreateCampaignRequest } from '@whip/contracts';
+import type { CreateCampaignRequest, TutorialState, TutorialUpdate } from '@whip/contracts';
 import { useUiStore } from '../stores/ui-store';
 import { sendSignInCode, signInWithCode, signOut } from './auth';
 import { endpoints } from './endpoints';
 import { isApiError } from './errors';
 import { api } from './runtime';
+import { DEFAULT_TUTORIAL, mergeTutorial } from './tutorial-merge';
 import type {
   ActionRequest,
   CampaignSummary,
@@ -38,6 +39,8 @@ export const keys = {
   history: (id: string, f: HistoryFilters) => ['campaign', id, 'history', f] as const,
   /** Outside the campaign prefix so invalidation after advance does not touch it. */
   turnReport: (id: string) => ['turn-report', id] as const,
+  /** UI metadata, outside the campaign prefix: an advance never refetches it. */
+  tutorial: (id: string) => ['tutorial', id] as const,
 };
 
 export const campaignsQuery = () =>
@@ -120,8 +123,12 @@ export const usePolitician = (id: string, pid: string) =>
     queryFn: ({ signal }) => ep.politician(id, pid, signal),
   });
 
-export const useParliament = (id: string) =>
-  useQuery({ queryKey: keys.parliament(id), queryFn: ({ signal }) => ep.parliament(id, signal) });
+export const useParliament = (id: string, enabled = true) =>
+  useQuery({
+    queryKey: keys.parliament(id),
+    queryFn: ({ signal }) => ep.parliament(id, signal),
+    enabled,
+  });
 
 export const useParty = (id: string) =>
   useQuery({ queryKey: keys.party(id), queryFn: ({ signal }) => ep.party(id, signal) });
@@ -258,6 +265,59 @@ export function useAdvance(id: string) {
       noteRevision(qc, id, report.revision);
       setTurnReportOpen(true);
       return invalidateCampaign(qc, id);
+    },
+  });
+}
+
+/* ----------------------------------------------------------------------------
+ * Members' induction (docs/architecture/11-tutorial.md). UI metadata: no revision, no ETag.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * The campaign's induction state. A 404 means the API predates the tutorial routes (or the
+ * campaign has none), so it reads as "disabled" rather than an error.
+ */
+export const tutorialQuery = (id: string) =>
+  queryOptions<TutorialState>({
+    queryKey: keys.tutorial(id),
+    queryFn: async ({ signal }) => {
+      try {
+        return await ep.tutorial(id, signal);
+      } catch (e) {
+        if (isApiError(e) && e.status === 404) return DEFAULT_TUTORIAL;
+        throw e;
+      }
+    },
+    staleTime: Infinity,
+  });
+
+export const useTutorialState = (id: string) => useQuery(tutorialQuery(id));
+
+/**
+ * PUT the induction. Optimistic: the cache takes the merged state at once, so a completed step
+ * moves on instantly. `completeSteps` is a set union server-side, so failures simply retry and
+ * the local state is never rolled back (it is only guidance, never game state).
+ */
+export function useUpdateTutorial(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (update: TutorialUpdate) => ep.updateTutorial(id, update),
+    meta: { inlineErrors: true },
+    retry: 4,
+    retryDelay: (attempt) => Math.min(8000, 500 * 2 ** attempt),
+    onMutate: async (update) => {
+      await qc.cancelQueries({ queryKey: keys.tutorial(id) });
+      qc.setQueryData<TutorialState>(keys.tutorial(id), (old) =>
+        mergeTutorial(old ?? DEFAULT_TUTORIAL, update, old?.updatedAt ?? null),
+      );
+    },
+    onSuccess: (server, update) => {
+      qc.setQueryData<TutorialState>(keys.tutorial(id), (local) =>
+        // Keep completions still in flight from other calls (the server unions them too).
+        update.reset || !local
+          ? server
+          : mergeTutorial(server, { completeSteps: local.completed }, server.updatedAt),
+      );
     },
   });
 }

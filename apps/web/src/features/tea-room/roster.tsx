@@ -10,10 +10,19 @@ const profilePath = (campaignId: string, id: string) =>
 const roleOf = (p: PoliticianSummary) => p.offices[0] ?? 'Backbencher';
 
 /** A colleague as a portrait card on the desk (the CK / FM roster tile). */
-export function RosterCard({ p, campaignId }: { p: PoliticianSummary; campaignId: string }) {
+export function RosterCard({
+  p,
+  campaignId,
+  tutorialTarget,
+}: {
+  p: PoliticianSummary;
+  campaignId: string;
+  /** `data-tutorial` id for the induction (features/tutorial). */
+  tutorialTarget?: string | undefined;
+}) {
   const colour = p.partyColour ?? 'var(--color-moss-400)';
   return (
-    <li className="min-w-0 animate-deal">
+    <li className="min-w-0 animate-deal" data-tutorial={tutorialTarget}>
       <Link
         to={profilePath(campaignId, p.id)}
         className={cn(

@@ -29,9 +29,13 @@ import {
   PoliticianProfileSchema,
   PoliticianSummarySchema,
   TurnReportSchema,
+  TutorialStateSchema,
+  TutorialUpdateSchema,
   type ErrorCode,
+  type TutorialState,
 } from '@whip/contracts';
 import type { z } from 'zod';
+import { DEFAULT_TUTORIAL, mergeTutorial } from '../api/tutorial-merge';
 import { buildCatalogue, slotsLeft } from './catalogue';
 import {
   CAMPAIGN_ID,
@@ -42,6 +46,7 @@ import {
   SECOND_CAMPAIGN_ID,
   addDays,
   buildWorld,
+  greenBeltProtestEvent,
   hdbSecondReadingResult,
   hdbThirdReadingForecast,
   lobbyJournalistEvent,
@@ -169,6 +174,8 @@ export function createMockBackend(options: { latencyMs?: number } = {}): MockBac
   let idempotency = new Map<string, { fingerprint: string; reply: Reply }>();
   /** The report stored by each campaign's most recent advance (GET turn-report/latest). */
   let lastReports = new Map<string, TurnReport>();
+  /** Members' induction state per campaign (UI metadata: never touches revision or ETag). */
+  let tutorials = new Map<string, TutorialState>();
   let campaignCounter = 1;
   let requestCounter = 1;
 
@@ -194,6 +201,7 @@ export function createMockBackend(options: { latencyMs?: number } = {}): MockBac
     );
     idempotency = new Map();
     lastReports = new Map();
+    tutorials = new Map();
     campaignCounter = 1;
   }
   reset();
@@ -792,6 +800,14 @@ export function createMockBackend(options: { latencyMs?: number } = {}): MockBac
     let division: DivisionResult | null = null;
     const hdb = w.parliament.bills.find((b) => b.id === HDB_ID);
 
+    // Week 2 brings the first dispatch: the constituency notices the bill.
+    if (
+      resolvingTurn === 1 &&
+      !w.overview.pendingEvents.some((e) => e.id === 'evt_green_belt_protest')
+    ) {
+      w.overview.pendingEvents.push(greenBeltProtestEvent(nextTurn));
+    }
+
     if (resolvingTurn === 3 && hdb) {
       hdb.stage = 'Second reading';
       w.overview.pendingEvents.push(lobbyJournalistEvent(nextTurn));
@@ -1038,6 +1054,11 @@ export function createMockBackend(options: { latencyMs?: number } = {}): MockBac
             updatedAt: now,
           });
           worlds.set(id, w);
+          tutorials.set(id, {
+            ...DEFAULT_TUTORIAL,
+            enabled: body.tutorial ?? true,
+            updatedAt: now,
+          });
           return {
             status: 201,
             body: validated(CampaignSummarySchema, w.summary, 'create campaign'),
@@ -1074,6 +1095,7 @@ export function createMockBackend(options: { latencyMs?: number } = {}): MockBac
       if (m === 'DELETE') {
         worlds.delete(w.summary.id);
         lastReports.delete(w.summary.id);
+        tutorials.delete(w.summary.id);
         return { status: 204, body: null };
       }
     }
@@ -1252,6 +1274,20 @@ export function createMockBackend(options: { latencyMs?: number } = {}): MockBac
     }
     if (head === 'party' && sub.length === 1 && m === 'GET') {
       return { status: 200, body: validated(PartyViewSchema, w.party, 'party'), headers: etag(w) };
+    }
+    if (head === 'tutorial' && sub.length === 1) {
+      const id = w.summary.id;
+      if (m === 'GET') {
+        const state = tutorials.get(id) ?? DEFAULT_TUTORIAL;
+        return { status: 200, body: validated(TutorialStateSchema, state, 'tutorial') };
+      }
+      if (m === 'PUT') {
+        // Idempotent by construction (set union, last write wins): no Idempotency-Key needed.
+        const update = parseBody(TutorialUpdateSchema, req.body);
+        const next = mergeTutorial(tutorials.get(id) ?? DEFAULT_TUTORIAL, update);
+        tutorials.set(id, next);
+        return { status: 200, body: validated(TutorialStateSchema, next, 'update tutorial') };
+      }
     }
     throw new HttpError('NOT_FOUND', 'Route not found.');
   }

@@ -46,8 +46,12 @@ describe('game shell (HUD)', () => {
     await waitFor(() =>
       expect(router.state.location.pathname).toBe(`/c/${CAMPAIGN_ID}/politicians`),
     );
+    expect(await screen.findByRole('heading', { name: 'Tea Room', level: 1 })).toBeInTheDocument();
     await user.keyboard('5');
     await waitFor(() => expect(router.state.location.pathname).toBe(`/c/${CAMPAIGN_ID}/history`));
+    // Wait for the Archive to be on screen, not just in the router: the shell's key handler
+    // judges "already there" from the rendered place.
+    expect(await screen.findByRole('heading', { name: 'Archive', level: 1 })).toBeInTheDocument();
     // Already there: no navigation, no tick.
     await user.keyboard('5');
     await user.keyboard('1');
@@ -122,6 +126,7 @@ describe('game shell (HUD)', () => {
     const items = within(pause).getAllByRole('menuitem');
     expect(items.map((i) => i.textContent)).toEqual([
       expect.stringMatching(/^Resume/),
+      expect.stringMatching(/^Induction/),
       expect.stringMatching(/^Settings/),
       expect.stringMatching(/^Save & exit/),
     ]);

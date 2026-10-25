@@ -34,7 +34,7 @@ One SQLite-backed DO per campaign, addressed by `idFromName(campaignId)`.
 
 ```sql
 -- inside each Campaign DO
-CREATE TABLE meta        (key TEXT PRIMARY KEY, value TEXT);               -- schema version, current revision
+CREATE TABLE meta        (key TEXT PRIMARY KEY, value TEXT);               -- schema version, current revision, tutorial (doc 11)
 CREATE TABLE revisions   (revision INTEGER PRIMARY KEY, turn INTEGER, sim_date TEXT,
                           reason TEXT, state_hash TEXT, byte_size INTEGER, chunk_count INTEGER, created_at TEXT);
 CREATE TABLE snapshot_chunks (revision INTEGER, idx INTEGER, data BLOB, PRIMARY KEY (revision, idx));

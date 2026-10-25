@@ -16,10 +16,13 @@ export function PauseMenu({
   campaignName,
   weekLabel,
   onResume,
+  induction,
 }: {
   campaignName: string | undefined;
   weekLabel: string | undefined;
   onResume: () => void;
+  /** The Members' induction: resume it if skipped, else restart it (features/tutorial). */
+  induction?: { sub: string; onActivate: () => void } | undefined;
 }) {
   const navigate = useNavigate();
   const platform = usePlatform();
@@ -43,6 +46,7 @@ export function PauseMenu({
 
   const items: MenuItem[] = [
     { id: 'resume', label: 'Resume', sub: weekLabel },
+    ...(induction ? [{ id: 'induction', label: 'Induction', sub: induction.sub }] : []),
     { id: 'settings', label: 'Settings', sub: 'Sound, motion and text size' },
     {
       id: 'exit',
@@ -54,6 +58,7 @@ export function PauseMenu({
 
   const activate = (id: string) => {
     if (id === 'resume') onResume();
+    else if (id === 'induction') induction?.onActivate();
     else if (id === 'settings') setScreen('settings');
     else if (id === 'exit') void navigate('/', { state: { skipTitle: true } });
     else if (id === 'quit') setQuitting(true);

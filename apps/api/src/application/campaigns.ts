@@ -1,4 +1,10 @@
-import type { CampaignSummary, CreateCampaignRequest, TurnReport } from '@whip/contracts';
+import type {
+  CampaignSummary,
+  CreateCampaignRequest,
+  TurnReport,
+  TutorialState,
+  TutorialUpdate,
+} from '@whip/contracts';
 import type {
   ActionRequest,
   CancelActionResponse,
@@ -186,6 +192,17 @@ export class CampaignUseCases {
     return this.afterCommit(id, await stub.advance(input));
   }
 
+  /** Tutorial progress (docs/architecture/11-tutorial.md). Not revisioned: no ETag, no projection. */
+  async getTutorial(userId: string, id: string): Promise<TutorialState> {
+    const stub = await this.stub(userId, id);
+    return unwrap(await stub.getTutorial());
+  }
+
+  async updateTutorial(userId: string, id: string, update: TutorialUpdate): Promise<TutorialState> {
+    const stub = await this.stub(userId, id);
+    return unwrap(await stub.updateTutorial(update));
+  }
+
   /** Player-facing "load autosave" (04 §4). Not routed in v1; available to the application. */
   async restore(
     userId: string,
@@ -240,6 +257,7 @@ export class CampaignUseCases {
         seed,
         player: req.player,
         createdAt,
+        tutorial: req.tutorial ?? true,
       }),
     );
     await this.deps.index.activate({ ...summary, playerPoliticianId });

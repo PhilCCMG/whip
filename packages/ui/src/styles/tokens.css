@@ -59,6 +59,8 @@
   --animate-stamp: whip-stamp 260ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
   --animate-deal: whip-deal 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   --animate-wipe: whip-wipe 520ms cubic-bezier(0.7, 0, 0.2, 1) both;
+  /* The induction marker on its target (the one loop in game; off under reduced motion). */
+  --animate-tutorial-pulse: whip-tutorial-pulse 1.3s ease-in-out infinite alternate;
 
   @keyframes whip-stamp {
     from {
@@ -70,6 +72,16 @@
     from {
       opacity: 0;
       translate: 0 -10px;
+    }
+  }
+  @keyframes whip-tutorial-pulse {
+    from {
+      opacity: 1;
+      translate: 0 0;
+    }
+    to {
+      opacity: 0.45;
+      translate: 0 -4px;
     }
   }
   @keyframes whip-wipe {

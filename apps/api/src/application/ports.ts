@@ -1,4 +1,10 @@
-import type { CampaignSummary, ErrorCode, TurnReport } from '@whip/contracts';
+import type {
+  CampaignSummary,
+  ErrorCode,
+  TurnReport,
+  TutorialState,
+  TutorialUpdate,
+} from '@whip/contracts';
 import type {
   ActionRequest,
   CancelActionResponse,
@@ -75,6 +81,11 @@ export interface InitialiseInput {
   seed: number;
   player: PlayerSetup;
   createdAt: string;
+  /**
+   * Initial tutorial `enabled` (CreateCampaignRequest.tutorial, default true), written in the
+   * revision-1 commit. Not part of the initialise hash: the create Idempotency-Key hash covers it.
+   */
+  tutorial?: boolean;
 }
 
 export interface MutationEnvelope {
@@ -122,6 +133,10 @@ export interface CampaignDoClient {
     ifRevision?: number,
   ): Promise<DoResult<HistoryValue | { notModified: true; revision: number }>>;
   restore(input: { revision: number; expectedRevision: number }): Promise<DoResult<RestoreValue>>;
+  /** Tutorial progress (meta table, outside revisions). NOT_FOUND when the campaign doesn't exist. */
+  getTutorial(): Promise<DoResult<TutorialState>>;
+  /** Merges an update (serialised with mutations); never bumps the revision. */
+  updateTutorial(update: TutorialUpdate): Promise<DoResult<TutorialState>>;
   destroy(): Promise<void>;
 }
 
@@ -177,6 +192,8 @@ export interface CommitRequest {
   /** TurnReport produced by this revision (advance); becomes the latest turn report. */
   turnReport?: StoredTurnReportBody;
   meta: CampaignMetaRecord;
+  /** Initialise only: initial tutorial state, written to `meta.tutorial` in the same transaction. */
+  tutorial?: TutorialState;
   /** Keep this many most recent revisions; older ones (and their chunks) are pruned. */
   retainRevisions: number;
   /** Idempotency rows created before this ISO timestamp are pruned. */
@@ -230,6 +247,10 @@ export interface CampaignStore {
   history(query: StoreHistoryQuery): HistoryRow[];
   /** The newest stored turn report, or null before the first advance. */
   latestTurnReport(): StoredTurnReport | null;
+  /** Raw `meta.tutorial` JSON, or null when nothing is stored. */
+  getTutorialJson(): string | null;
+  /** Writes `meta.tutorial` only (no revision, no snapshot). */
+  setTutorialJson(json: string): void;
   destroy(): Promise<void>;
 }
 

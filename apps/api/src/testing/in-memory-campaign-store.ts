@@ -107,6 +107,7 @@ export class InMemoryCampaignStore implements CampaignStore {
     }
     next.current = r.revision;
     next.meta = { ...req.meta };
+    if (req.tutorial !== undefined) next.tutorial = JSON.stringify(req.tutorial);
     const pruneAtOrBelow = r.revision - req.retainRevisions;
     for (const rev of [...next.revisions.keys()]) {
       if (rev <= pruneAtOrBelow) {
@@ -137,6 +138,14 @@ export class InMemoryCampaignStore implements CampaignStore {
     const revision = Math.max(...revs);
     const body = this.data.turnReports.get(revision);
     return body ? { ...body, revision } : null;
+  }
+
+  getTutorialJson(): string | null {
+    return this.data.tutorial;
+  }
+
+  setTutorialJson(json: string): void {
+    this.data.tutorial = json;
   }
 
   /** Test hook: raw stored idempotency response (size-cap tests). */
@@ -194,6 +203,7 @@ function empty() {
     idempotency: new Map<string, StoredIdempotency>(),
     idempotencyCreated: new Map<string, string>(),
     turnReports: new Map<number, StoredTurnReportBody>(),
+    tutorial: null as string | null,
   };
 }
 
@@ -207,5 +217,6 @@ function clone(d: ReturnType<typeof empty>): ReturnType<typeof empty> {
     idempotency: new Map(d.idempotency),
     idempotencyCreated: new Map(d.idempotencyCreated),
     turnReports: new Map(d.turnReports),
+    tutorial: d.tutorial,
   };
 }

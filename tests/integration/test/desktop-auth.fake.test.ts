@@ -1,4 +1,4 @@
-import { CampaignSummarySchema, MeResponseSchema } from '@whip/contracts';
+import { CampaignSummarySchema, MeResponseSchema, TutorialStateSchema } from '@whip/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api, errorCode, key, newCampaign } from './helpers';
 
@@ -111,6 +111,21 @@ describe('desktop client: CORS + bearer sessions (workerd + D1)', () => {
     expect(read.status).toBe(200);
     expect(read.headers.get('etag')).toBeTruthy();
     expect(read.headers.get('access-control-expose-headers')?.toLowerCase()).toContain('etag');
+
+    // Tutorial progress (PUT, preflighted from the webview) works with the bearer too.
+    const tutorialUrl = `/api/v1/campaigns/${summary.id}/tutorial`;
+    const put = await api(tutorialUrl, {
+      method: 'PUT',
+      body: { completeSteps: ['welcome'] },
+      headers: bearer(token),
+    });
+    expect(put.status).toBe(200);
+    expect(put.headers.get('access-control-allow-origin')).toBe(TAURI);
+    const tutorial = await api(tutorialUrl, { headers: bearer(token) });
+    expect(TutorialStateSchema.parse(await tutorial.json())).toMatchObject({
+      enabled: true,
+      completed: ['welcome'],
+    });
 
     // Ownership still applies: another desktop player cannot see it (404, not 403).
     const other = await desktopSignIn(`desk-other-${Date.now()}@example.test`);

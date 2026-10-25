@@ -7,9 +7,12 @@ import { createQueryClient } from '../lib/query-client';
 import { createMockBackend } from '../mocks/backend';
 import { routes as appRoutes } from '../router';
 
-/** Render the real routes against a fresh in-memory mock backend. */
-export function renderApp(path: string, routes: RouteObject[] = appRoutes) {
-  const backend = createMockBackend({ latencyMs: 0 });
+/** Render the real routes against a fresh in-memory mock backend (or the one given). */
+export function renderApp(
+  path: string,
+  routes: RouteObject[] = appRoutes,
+  backend = createMockBackend({ latencyMs: 0 }),
+) {
   setApiFetch(backend.fetch);
   const client = createQueryClient();
   const router = createMemoryRouter(routes, { initialEntries: [path] });

@@ -189,12 +189,19 @@ export function Component() {
                 'grid-cols-[repeat(auto-fill,minmax(min(100%,17.5rem),1fr))]',
               )}
             >
-              {rows.map((p) => (
-                <RosterCard key={p.id} p={p} campaignId={id} />
+              {rows.map((p, i) => (
+                <RosterCard
+                  key={p.id}
+                  p={p}
+                  campaignId={id}
+                  tutorialTarget={i === 0 ? 'roster' : undefined}
+                />
               ))}
             </ul>
           ) : (
-            <RosterTable rows={rows} campaignId={id} />
+            <div data-tutorial="roster">
+              <RosterTable rows={rows} campaignId={id} />
+            </div>
           )}
           <div>
             {list.hasNextPage && (

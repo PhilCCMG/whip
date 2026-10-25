@@ -111,6 +111,13 @@ describe('Better Auth email OTP (workerd + D1)', () => {
     // The session user can create and list their own campaigns.
     const res = await api('/api/v1/campaigns', { headers: { cookie } });
     expect(res.status).toBe(200);
+    // Tutorial routes authenticate the cookie too (an unknown campaign is 404, not 401).
+    const tutorial = await api('/api/v1/campaigns/no-such-campaign/tutorial', {
+      method: 'PUT',
+      body: { dismissed: true },
+      headers: { cookie },
+    });
+    expect(tutorial.status).toBe(404);
 
     const signedOut = await post('/api/auth/sign-out', {}, { cookie });
     expect(signedOut.status).toBe(200);

@@ -162,6 +162,7 @@ function ActionButton({ action: a }: { action: QuickAction }) {
       type="button"
       onClick={a.onPress}
       disabled={disabled}
+      data-tutorial-avoid=""
       className={cn(
         'inline-flex h-11 cursor-pointer items-center gap-3 pr-2 pl-3.5 font-display text-[1.05rem] leading-none font-black tracking-[0.03em] uppercase [font-stretch:72%]',
         'focus-visible:outline-2 focus-visible:-outline-offset-4 disabled:cursor-not-allowed disabled:opacity-55',
@@ -265,6 +266,7 @@ export function RelationshipSheet({ p, playerName }: { p: PoliticianProfile; pla
   return (
     <section
       aria-labelledby="rel-title"
+      data-tutorial="relationships"
       className="bg-ink text-paper outline-2 -outline-offset-2 outline-paper/15"
     >
       <div

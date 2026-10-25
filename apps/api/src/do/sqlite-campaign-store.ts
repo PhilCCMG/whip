@@ -208,6 +208,7 @@ export class SqliteCampaignStore implements CampaignStore {
 
       this.setMeta('current_revision', String(r.revision));
       this.setMeta('campaign', JSON.stringify(req.meta));
+      if (req.tutorial !== undefined) this.setMeta('tutorial', JSON.stringify(req.tutorial));
 
       const pruneAtOrBelow = r.revision - req.retainRevisions;
       if (pruneAtOrBelow > 0) {
@@ -283,6 +284,14 @@ export class SqliteCampaignStore implements CampaignStore {
       .toArray()
       .map((c) => new Uint8Array(c.data));
     return { revision: row.revision, chunks, hash: row.report };
+  }
+
+  getTutorialJson(): string | null {
+    return this.metaValue('tutorial');
+  }
+
+  setTutorialJson(json: string): void {
+    this.setMeta('tutorial', json);
   }
 
   async destroy(): Promise<void> {

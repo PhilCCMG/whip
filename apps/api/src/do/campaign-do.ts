@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import type { TurnReport } from '@whip/contracts';
+import type { TurnReport, TutorialState, TutorialUpdate } from '@whip/contracts';
 import type { CampaignServiceApi } from '../application/campaign-service';
 import type {
   ActionRequest,
@@ -111,6 +111,14 @@ export class CampaignDO extends DurableObject<Env> implements CampaignDoClient {
 
   restore(input: { revision: number; expectedRevision: number }): Promise<DoResult<RestoreValue>> {
     return this.service.restore(input);
+  }
+
+  getTutorial(): Promise<DoResult<TutorialState>> {
+    return this.service.getTutorial();
+  }
+
+  updateTutorial(update: TutorialUpdate): Promise<DoResult<TutorialState>> {
+    return this.service.updateTutorial(update);
   }
 
   destroy(): Promise<void> {

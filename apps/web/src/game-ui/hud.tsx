@@ -19,7 +19,12 @@ export function HudCalendar({ turn, simDate }: { turn: number; simDate: string }
   const d = parseSimDate(simDate);
   const label = `Week ${turn}, ${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
   return (
-    <div className="flex h-full items-stretch" role="group" aria-label={label}>
+    <div
+      className="flex h-full items-stretch"
+      role="group"
+      aria-label={label}
+      data-tutorial="hud-week"
+    >
       <div aria-hidden="true" className="flex w-[4.25rem] flex-col bg-paper-bright text-ink">
         <span className="bg-whip py-[3px] text-center text-[10px] leading-none font-black tracking-[0.12em] text-white uppercase">
           Week
@@ -51,6 +56,7 @@ export function HudResources({ overview }: { overview: CareerOverview }) {
     <div className="flex items-center gap-5">
       <ResourceCounter
         label="Capital"
+        data-tutorial="hud-capital"
         value={politicalCapital}
         delta={`${signed(capitalIncome)}/wk`}
         deltaTone={capitalIncome > 0 ? 'good' : capitalIncome < 0 ? 'bad' : 'neutral'}
@@ -61,6 +67,7 @@ export function HudResources({ overview }: { overview: CareerOverview }) {
       <ResourceCounter
         className="max-md:hidden"
         label="Influence"
+        data-tutorial="hud-influence"
         value={Math.round(influence.total)}
         delta={`${overview.standing.endorsements.length} endorsed`}
         aria-label={`Influence ${Math.round(influence.total)}`}
@@ -188,6 +195,7 @@ export function PlaceTabs({
               <NavLink
                 to={campaignPath(campaignId, p.path)}
                 end={p.path === ''}
+                data-tutorial={`place-${p.key}`}
                 className={({ isActive }) =>
                   cn(
                     'relative flex h-14 flex-col items-center justify-center gap-1 text-[10px] font-bold tracking-[0.06em] uppercase',
@@ -224,6 +232,7 @@ export function PlaceTabs({
               to={campaignPath(campaignId, p.path)}
               end={p.path === ''}
               title={`${p.blurb} (${p.hotkey})`}
+              data-tutorial={`place-${p.key}`}
               className={({ isActive }) =>
                 cn(
                   'group relative flex h-full items-center gap-2.5 pr-[1.6rem] pl-4 [clip-path:polygon(0_0,100%_0,calc(100%-0.75rem)_100%,0_100%)]',

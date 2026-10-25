@@ -191,3 +191,73 @@ export function OptionTiles<T extends string>({
     </div>
   );
 }
+
+/**
+ * An on/off option as a game tile (a `switch`): the same plate as OptionTiles, with a slashed
+ * check box that fills when on. Space/Enter or a click toggles it.
+ */
+export function ToggleTile({
+  label,
+  blurb,
+  checked,
+  onChange,
+  className,
+}: {
+  label: string;
+  blurb?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      data-field
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'flex min-h-11 w-full cursor-pointer items-center gap-4 border-2 px-4 py-3 text-left transition-[background-color,border-color,color] duration-150',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper-bright',
+        checked
+          ? 'border-paper-bright bg-paper-bright text-ink'
+          : 'border-paper/25 bg-ink text-paper hover:border-paper/60',
+        className,
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          'grid size-8 shrink-0 place-items-center border-2',
+          checked ? 'border-ink bg-ink' : 'border-paper/40',
+        )}
+      >
+        {checked && <SlashCursor className="h-5 w-auto" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-display text-[22px] leading-none font-black uppercase [font-stretch:72%]">
+          {label}
+        </span>
+        {blurb && (
+          <span
+            className={cn(
+              'mt-1 block text-[13px] font-medium',
+              checked ? 'text-ink/75' : 'text-paper/70',
+            )}
+          >
+            {blurb}
+          </span>
+        )}
+      </span>
+      <span
+        aria-hidden="true"
+        className={cn(
+          'shrink-0 text-[11px] font-bold tracking-[0.1em] uppercase',
+          checked ? 'text-ink' : 'text-paper/60',
+        )}
+      >
+        {checked ? 'On' : 'Off'}
+      </span>
+    </button>
+  );
+}

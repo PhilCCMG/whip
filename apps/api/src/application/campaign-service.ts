@@ -1,4 +1,10 @@
-import type { CampaignSummary, HistoryItem, TurnReport } from '@whip/contracts';
+import type {
+  CampaignSummary,
+  HistoryItem,
+  TurnReport,
+  TutorialState,
+  TutorialUpdate,
+} from '@whip/contracts';
 import { canonicalStringify } from './canonical-json';
 import type { ActionRequest, CancelActionResponse, HistoryQuery, PlanActionResponse } from './dto';
 import type { EngineRuntime, HistoryRowInput } from './engine';
@@ -10,6 +16,12 @@ import {
   isStoredResponseRef,
   utf8Bytes,
 } from './row-limits';
+import {
+  DEFAULT_TUTORIAL_STATE,
+  initialTutorialState,
+  mergeTutorial,
+  parseStoredTutorial,
+} from './tutorial';
 import {
   type CampaignMetaRecord,
   type CampaignProjection,
@@ -83,6 +95,8 @@ export interface CampaignServiceApi {
     ifRevision?: number,
   ): Promise<DoResult<HistoryValue | { notModified: true; revision: number }>>;
   restore(input: { revision: number; expectedRevision: number }): Promise<DoResult<RestoreValue>>;
+  getTutorial(): Promise<DoResult<TutorialState>>;
+  updateTutorial(update: TutorialUpdate): Promise<DoResult<TutorialState>>;
   destroy(): Promise<void>;
   /** Drops the hot in-memory state; the next read reloads (and re-verifies) from storage. */
   evictCache(): void;
@@ -233,7 +247,9 @@ class CampaignService<S, R, H> implements CampaignServiceApi {
   initialise(input: InitialiseInput): Promise<DoResult<InitialisedCampaign>> {
     return this.exclusive(async () => {
       const { store, runtime, codec, sha256 } = this.deps;
-      const initialiseHash = await sha256(canonicalStringify(input));
+      // `tutorial` is UI metadata, excluded so saves created before it existed still match.
+      const { tutorial, ...hashed } = input;
+      const initialiseHash = await sha256(canonicalStringify(hashed));
       const existing = store.getMeta();
       if (existing) {
         // Retried create (doc 04 §4): the DO already committed revision 1. Same input ⇒ same result.
@@ -305,6 +321,7 @@ class CampaignService<S, R, H> implements CampaignServiceApi {
           .historyRecordsToRows(created.history)
           .map((h) => boundHistoryRow(h, this.limits)),
         meta,
+        tutorial: initialTutorialState(tutorial ?? true, input.createdAt),
         retainRevisions: RETAINED_REVISIONS,
       });
       if (result.status !== 'committed') {
@@ -326,6 +343,31 @@ class CampaignService<S, R, H> implements CampaignServiceApi {
       });
       this.hot = { revision: 1, state: created.state };
       return ok({ ...this.summary(meta, record), playerPoliticianId: meta.playerPoliticianId });
+    });
+  }
+
+  /* ----------------------------------------------------------------- tutorial */
+
+  getTutorial(): Promise<DoResult<TutorialState>> {
+    const { store } = this.deps;
+    if (store.currentRevision() === null) return Promise.resolve(notFound());
+    return Promise.resolve(
+      ok(parseStoredTutorial(store.getTutorialJson()) ?? DEFAULT_TUTORIAL_STATE),
+    );
+  }
+
+  /**
+   * Read-merge-write of `meta.tutorial` only: no revision, snapshot or D1 projection. Runs in the
+   * mutation queue so concurrent updates (two tabs, retries) each merge onto the latest state.
+   */
+  updateTutorial(update: TutorialUpdate): Promise<DoResult<TutorialState>> {
+    return this.exclusive(() => {
+      const { store, clock } = this.deps;
+      if (store.currentRevision() === null) return Promise.resolve(notFound<TutorialState>());
+      const prev = parseStoredTutorial(store.getTutorialJson()) ?? DEFAULT_TUTORIAL_STATE;
+      const next = mergeTutorial(prev, update, clock.nowIso());
+      store.setTutorialJson(JSON.stringify(next));
+      return Promise.resolve(ok(next));
     });
   }
 

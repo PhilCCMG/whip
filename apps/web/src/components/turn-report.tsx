@@ -76,6 +76,7 @@ function YourWeek({ report }: { report: TurnReport }) {
   return (
     <section
       aria-labelledby="tr-actions"
+      data-tutorial="your-week"
       className="bg-paper-bright p-3 text-ink outline-2 -outline-offset-2 outline-ink"
     >
       <div className="-mx-3 -mt-3 mb-3 flex items-center justify-between gap-3 bg-ink px-3 py-2 text-paper-bright">
@@ -136,8 +137,10 @@ export function TurnReportContent({
           aria-label={report.divisions.length === 1 ? 'The division' : 'Divisions'}
           className="grid gap-6"
         >
-          {report.divisions.map((d) => (
-            <DivisionTally key={d.id} division={d} campaignId={campaignId} />
+          {report.divisions.map((d, i) => (
+            <div key={d.id} data-tutorial={i === 0 ? 'division-tally' : undefined}>
+              <DivisionTally division={d} campaignId={campaignId} />
+            </div>
           ))}
         </section>
       )}

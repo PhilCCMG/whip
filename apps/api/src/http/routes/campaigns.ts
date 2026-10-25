@@ -7,6 +7,7 @@ import {
   PageQuerySchema,
   PlanActionRequestSchema,
   PoliticianListQuerySchema,
+  TutorialUpdateSchema,
 } from '@whip/contracts';
 import { type Context, Hono } from 'hono';
 import { z } from 'zod';
@@ -40,6 +41,9 @@ async function view(c: Context<AppEnv>, id: string, req: ViewRequest) {
  * `DELETE /:id/actions/:plannedId`, `expectedRevision` is read from the **query string**
  * (`?expectedRevision=N`); a JSON body `{ expectedRevision }` is accepted as a fallback.
  * `DELETE /:id` (soft delete) is naturally idempotent and needs neither.
+ *
+ * `/:id/tutorial` (docs/architecture/11-tutorial.md) is UI metadata outside the revision model:
+ * no Idempotency-Key or expectedRevision (the merge is a set union), no ETag, `no-store`.
  */
 export function campaignRoutes(resolveSession?: SessionResolver) {
   return (
@@ -158,6 +162,30 @@ export function campaignRoutes(resolveSession?: SessionResolver) {
           });
           c.header('ETag', campaignEtag(id, report.revision));
           return c.json(report);
+        },
+      )
+
+      .get('/:id/tutorial', validate('param', CampaignParam), async (c) => {
+        const state = await campaignUseCases(c).getTutorial(
+          currentUser(c).id,
+          c.req.valid('param').id,
+        );
+        c.header('Cache-Control', 'no-store');
+        return c.json(state);
+      })
+
+      .put(
+        '/:id/tutorial',
+        validate('param', CampaignParam),
+        validate('json', TutorialUpdateSchema),
+        async (c) => {
+          const state = await campaignUseCases(c).updateTutorial(
+            currentUser(c).id,
+            c.req.valid('param').id,
+            c.req.valid('json'),
+          );
+          c.header('Cache-Control', 'no-store');
+          return c.json(state);
         },
       )
 

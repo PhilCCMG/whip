@@ -30,6 +30,8 @@ export function EndWeekButton({
       onClick={onPress}
       disabled={pending}
       data-sfx="off"
+      data-tutorial="end-week"
+      data-tutorial-avoid=""
       aria-label="End week"
       aria-describedby="end-week-status"
       aria-keyshortcuts={END_WEEK_KEY}

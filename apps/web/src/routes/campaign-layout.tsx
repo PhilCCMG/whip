@@ -7,6 +7,10 @@ import { ActionPlanner } from '../components/action-planner';
 import { ErrorState, Loading } from '../components/states';
 import { TurnReportDialog } from '../components/turn-report';
 import { uiSound, useClickSounds, useUiSoundPreload } from '../features/audio/use-ui-sound';
+import { UI as INDUCTION_COPY } from '../features/tutorial/copy';
+import { consumeTutorialEscape } from '../features/tutorial/store';
+import { TutorialLayer } from '../features/tutorial/tutorial-layer';
+import { useTutorial } from '../features/tutorial/use-tutorial';
 import { EndWeekButton, EndWeekConfirm, WeekTransition } from '../game-ui/end-week';
 import { useEndWeek } from '../game-ui/use-end-week';
 import { GameScreenHeader } from '../game-ui/game-screen';
@@ -79,6 +83,7 @@ export function Component() {
 
   const [paused, setPaused] = useState(false);
   const endWeek = useEndWeek(campaignId, overview);
+  const tutorial = useTutorial(campaignId, { paused, transitioning: !!endWeek.transition });
 
   const base = campaignPath(campaignId);
   const sub = location.pathname.startsWith(base)
@@ -110,6 +115,11 @@ export function Component() {
           uiSound.click();
         } else if (!modalOpen()) {
           e.preventDefault();
+          // The induction card takes the first Esc (it puts the card away, not the induction).
+          if (consumeTutorialEscape()) {
+            uiSound.click();
+            return;
+          }
           setPaused(true);
           uiSound.click();
         }
@@ -213,6 +223,7 @@ export function Component() {
             />
           </div>
         )}
+        <TutorialLayer controller={tutorial} />
       </div>
 
       {endWeek.transition && <WeekTransition turn={endWeek.transition.turn} />}
@@ -223,6 +234,23 @@ export function Component() {
             overview ? `Week ${turn} · ${formatSimDate(overview.campaign.simDate)}` : undefined
           }
           onResume={() => setPaused(false)}
+          induction={
+            tutorial.available
+              ? {
+                  sub: !tutorial.state?.enabled
+                    ? INDUCTION_COPY.menuStart
+                    : tutorial.state.dismissed && !tutorial.finished
+                      ? INDUCTION_COPY.menuResume
+                      : INDUCTION_COPY.menuRestart,
+                  onActivate: () => {
+                    if (tutorial.state?.enabled && tutorial.state.dismissed && !tutorial.finished)
+                      tutorial.resume();
+                    else tutorial.restart();
+                    setPaused(false);
+                  },
+                }
+              : undefined
+          }
         />
       )}
       <ActionPlanner campaignId={campaignId} />

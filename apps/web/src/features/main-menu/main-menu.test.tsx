@@ -108,6 +108,7 @@ describe('main menu', () => {
       {
         name: 'Ashby & Wold',
         scenarioKey: 'first_weeks',
+        tutorial: true,
         player: {
           firstName: 'Rachel',
           lastName: 'Danby',
@@ -117,6 +118,33 @@ describe('main menu', () => {
         },
       },
     ]);
+  });
+
+  it('offers the Members’ induction on the swear-in step, on by default', async () => {
+    const user = userEvent.setup();
+    const { backend, router } = renderApp('/?screen=new');
+    const bodies: { tutorial?: boolean }[] = [];
+    setApiFetch(async (input, init) => {
+      if (init?.method === 'POST' && urlOf(input).endsWith('/api/v1/campaigns')) {
+        bodies.push(JSON.parse(init.body as string) as { tutorial?: boolean });
+      }
+      return backend.fetch(input, init);
+    });
+    await user.type(await screen.findByLabelText('First name'), 'Tom');
+    await user.type(screen.getByLabelText('Last name'), 'Avery{Enter}');
+    await user.click(await screen.findByRole('button', { name: 'Next: leaning' }));
+    await user.click(await screen.findByRole('button', { name: 'Next: swear in' }));
+
+    const toggle = await screen.findByRole('switch', { name: /Take the Members’ induction/ });
+    expect(toggle).toBeChecked();
+    await user.click(toggle);
+    expect(toggle).not.toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Take your seat' }));
+    await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/c\//), {
+      timeout: 5000,
+    });
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]?.tutorial).toBe(false);
   });
 
   it('steps back through character creation with Esc', async () => {

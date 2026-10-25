@@ -13,7 +13,9 @@ import {
   PoliticianListResponseSchema,
   PoliticianProfileSchema,
   TurnReportSchema,
+  TutorialStateSchema,
   type CreateCampaignRequest,
+  type TutorialUpdate,
 } from '@whip/contracts';
 import type { ApiClient } from './client';
 import type { ActionRequest, HistoryFilters, PoliticianFilters } from './types';
@@ -79,6 +81,13 @@ export function endpoints(api: ApiClient) {
       api.get(`${c(id)}/parliament`, ParliamentViewSchema, { signal }),
     party: (id: string, signal?: AbortSignal) =>
       api.get(`${c(id)}/party`, PartyViewSchema, { signal }),
+
+    /** Members' induction progress (UI metadata; docs/architecture/11-tutorial.md). */
+    tutorial: (id: string, signal?: AbortSignal) =>
+      api.get(`${c(id)}/tutorial`, TutorialStateSchema, { signal }),
+    /** Idempotent merge (set union), so plain retries are safe. */
+    updateTutorial: (id: string, body: TutorialUpdate) =>
+      api.mutate('PUT', `${c(id)}/tutorial`, TutorialStateSchema, { body }),
   };
 }
 
