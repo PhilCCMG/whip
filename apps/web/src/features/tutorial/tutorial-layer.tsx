@@ -11,6 +11,7 @@ import {
 import { createPortal } from 'react-dom';
 import { isEditable, modalOpen } from '../../game-ui/keys';
 import { PLACES } from '../../game-ui/places';
+import { STAMPS } from '../../game-ui/stamps';
 import { useReducedMotion } from '../../stores/settings-store';
 import { uiSound } from '../audio/use-ui-sound';
 import { HUD_TOUR, LINES, MENTOR, UI } from './copy';
@@ -424,12 +425,26 @@ function GraduationStamp({ onDone, until }: { onDone: () => void; until: number 
       role="status"
       className="pointer-events-none fixed bottom-[calc(7rem+1rem+env(safe-area-inset-bottom))] left-4 z-[33] bg-paper-bright px-4 py-3 text-ink outline-2 -outline-offset-2 outline-ink md:bottom-[6rem]"
     >
-      <Stamp tone="good" size="md" angle={-5} className="animate-stamp">
-        {UI.stamp}
-      </Stamp>
-      <p className="mt-2.5 text-[11px] font-semibold text-ink/75">
-        Signed: {MENTOR.name}, {MENTOR.title}
-      </p>
+      {/* The mentor's round NOTED seal, with the sign-off beside it. */}
+      <div className="flex items-center gap-3">
+        <Stamp
+          tone="ink"
+          size="md"
+          angle={-5}
+          image={STAMPS['noted-round']}
+          className="shrink-0 animate-stamp"
+        >
+          Noted
+        </Stamp>
+        <div>
+          <p className="font-display text-xl leading-none font-black uppercase [font-stretch:75%]">
+            {UI.stamp}
+          </p>
+          <p className="mt-1.5 text-[11px] font-semibold text-ink/75">
+            Signed: {MENTOR.name}, {MENTOR.title}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

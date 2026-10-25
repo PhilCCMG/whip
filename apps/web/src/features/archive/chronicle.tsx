@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { HistoryItem, HistoryType } from '../../api/types';
+import { stampImage } from '../../game-ui/stamps';
 import { formatShortDate, formatSimDate, plural } from '../../lib/format';
 import { weekStart } from './model';
 
@@ -48,6 +49,8 @@ const involves = (item: HistoryItem, playerId: string | undefined) =>
 /** A front-page cutting: big headline, stamp, standfirst. Importance 4–5. */
 function Clipping({ item, mine }: { item: HistoryItem; mine: boolean }) {
   const meta = TYPE_META[item.type];
+  // Only "Division" has an inked mark; the other words stay type-set.
+  const image = stampImage(meta.stamp);
   return (
     <li className="relative border-t-4 border-ink bg-paper-bright px-4 pt-3 pb-4 outline-1 -outline-offset-1 outline-ink/15">
       <div className="flex items-start justify-between gap-3">
@@ -69,7 +72,13 @@ function Clipping({ item, mine }: { item: HistoryItem; mine: boolean }) {
             <span>{item.importance >= 5 ? 'Front page' : 'Major'}</span>
           </Kicker>
         </div>
-        <Stamp size="sm" tone={meta.tone} angle={item.seq % 2 ? -5 : 4} className="mt-1 shrink-0">
+        <Stamp
+          size="sm"
+          tone={meta.tone}
+          {...(image ? { image } : {})}
+          angle={item.seq % 2 ? -5 : 4}
+          className="mt-1 shrink-0"
+        >
           {meta.stamp}
         </Stamp>
       </div>

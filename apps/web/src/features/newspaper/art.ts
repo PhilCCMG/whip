@@ -13,7 +13,17 @@ import wetHustings from '../../assets/art/news/wet-hustings.webp';
 import dailyClarion from '../../assets/art/mastheads/daily-clarion.webp';
 import morningWhip from '../../assets/art/mastheads/morning-whip.webp';
 import westminsterGazette from '../../assets/art/mastheads/westminster-gazette.webp';
-import type { Article } from '../../api/types';
+import busShelter from '../../assets/art/spots/bus-shelter.webp';
+import catMinisterialCar from '../../assets/art/spots/cat-ministerial-car.webp';
+import llama from '../../assets/art/spots/llama.webp';
+import marrow from '../../assets/art/spots/marrow.webp';
+import parishCouncil from '../../assets/art/spots/parish-council.webp';
+import pothole from '../../assets/art/spots/pothole.webp';
+import scarecrow from '../../assets/art/spots/scarecrow.webp';
+import swan from '../../assets/art/spots/swan.webp';
+import tortoise from '../../assets/art/spots/tortoise.webp';
+import weather from '../../assets/art/spots/weather.webp';
+import type { Article, Newspaper, NewspaperSectionKey } from '../../api/types';
 
 /* ----------------------------------------------------------------------------
  * Mastheads
@@ -184,4 +194,110 @@ function hash(s: string): number {
 /** A caption from the photo's pool, stable per story. */
 export function captionFor(photo: NewsPhoto, seed: string): string {
   return photo.captions[hash(seed) % photo.captions.length]!;
+}
+
+/* ----------------------------------------------------------------------------
+ * Filler spot art
+ * ------------------------------------------------------------------------- */
+
+export type SpotKey =
+  | 'weather'
+  | 'tortoise'
+  | 'swan'
+  | 'bus-shelter'
+  | 'scarecrow'
+  | 'parish-council'
+  | 'cat-ministerial-car'
+  | 'pothole'
+  | 'llama'
+  | 'marrow';
+
+/** A cut-out picture for a filler story: one subject on a transparent ground, 480w. */
+export interface SpotArt {
+  key: SpotKey;
+  src: string;
+  width: number;
+  height: number;
+}
+
+export const SPOTS: Record<SpotKey, SpotArt> = {
+  weather: { key: 'weather', src: weather, width: 480, height: 480 },
+  tortoise: { key: 'tortoise', src: tortoise, width: 480, height: 342 },
+  swan: { key: 'swan', src: swan, width: 480, height: 480 },
+  'bus-shelter': { key: 'bus-shelter', src: busShelter, width: 480, height: 480 },
+  scarecrow: { key: 'scarecrow', src: scarecrow, width: 480, height: 480 },
+  'parish-council': { key: 'parish-council', src: parishCouncil, width: 480, height: 480 },
+  'cat-ministerial-car': {
+    key: 'cat-ministerial-car',
+    src: catMinisterialCar,
+    width: 480,
+    height: 480,
+  },
+  pothole: { key: 'pothole', src: pothole, width: 480, height: 480 },
+  llama: { key: 'llama', src: llama, width: 480, height: 480 },
+  marrow: { key: 'marrow', src: marrow, width: 480, height: 480 },
+};
+
+/**
+ * Keywords on a filler story's headline, standfirst and body, in priority order (the first rule
+ * that matches wins). Specific creatures come before places, and the catch-all "council" comes
+ * last, so a pothole the council ignores is still a pothole. No match, no picture: there is no
+ * fallback. `council` never matches "councillor" (word boundaries).
+ */
+const SPOT_RULES: readonly [SpotKey, RegExp][] = [
+  ['cat-ministerial-car', /\b(cats?|kittens?)\b/i],
+  ['swan', /\bswans?\b/i],
+  ['tortoise', /\btortoises?\b/i],
+  ['llama', /\bllamas?\b/i],
+  ['scarecrow', /\bscarecrows?\b/i],
+  ['marrow', /\b(marrows?|vegetables?|produce show|allotments?)\b/i],
+  ['bus-shelter', /\bbus(es)?\b/i],
+  ['pothole', /\b(potholes?|roads?|roadworks|speed bumps?)\b/i],
+  ['parish-council', /\b(parish|councils?)\b/i],
+];
+
+/** Sections whose stories may carry a spot besides the Weather box. Never politics. */
+const SPOT_SECTIONS: readonly NewspaperSectionKey[] = ['and_finally', 'constituencies'];
+
+/** At most this many spots per paper, the Weather box's included: a paper, not a scrapbook. */
+export const MAX_SPOTS = 3;
+
+/** The spot a filler story's words call for, if any (keyword match only; deterministic). */
+export function spotFor(
+  article: Pick<Article, 'headline' | 'standfirst' | 'body' | 'filler'>,
+): SpotArt | undefined {
+  if (!article.filler) return undefined;
+  const text = `${article.headline} ${article.standfirst ?? ''} ${article.body ?? ''}`;
+  for (const [key, re] of SPOT_RULES) if (re.test(text)) return SPOTS[key];
+  return undefined;
+}
+
+/**
+ * Spots for the sections a paper prints, by article id: the Weather box's first story always gets
+ * the raincloud, then filler stories in And Finally and Around the Constituencies take a spot by
+ * keyword, in the order given, until `MAX_SPOTS`. Each picture runs once per paper. Political
+ * stories (the politics section, or any article not marked filler) never get one.
+ */
+export function spotsForPaper(sections: Newspaper['sections']): Map<string, SpotArt> {
+  const out = new Map<string, SpotArt>();
+  const used = new Set<SpotKey>();
+  const forecast = sections
+    .filter((s) => s.key === 'weather')
+    .flatMap((s) => s.articles)
+    .find((a) => a.filler);
+  if (forecast) {
+    out.set(forecast.id, SPOTS.weather);
+    used.add('weather');
+  }
+  for (const s of sections) {
+    if (!SPOT_SECTIONS.includes(s.key)) continue;
+    for (const a of s.articles) {
+      if (out.size >= MAX_SPOTS) return out;
+      const spot = spotFor(a);
+      if (!spot || used.has(spot.key)) continue;
+      out.set(a.id, spot);
+      used.add(spot.key);
+    }
+  }
+  return out;
 }

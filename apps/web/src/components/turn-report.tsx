@@ -15,6 +15,7 @@ import { paperFromHeadlines } from '../features/newspaper/paper-style';
 import { KIND_LABEL } from '../features/office/model';
 import { DispatchFrame, DispatchTitle } from '../game-ui/dispatch-frame';
 import { DivisionTally } from '../game-ui/division-tally';
+import { OUTCOME_STAMP } from '../game-ui/stamps';
 import { useSoundCues } from '../features/audio/cues';
 import { useReducedMotion } from '../stores/settings-store';
 import {
@@ -24,13 +25,6 @@ import {
 } from './turn-report-sounds';
 import { formatSimDate, signed } from '../lib/format';
 
-const STAMP: Record<ActionOutcome['status'], { text: string; tone: 'good' | 'warning' | 'bad' }> = {
-  succeeded: { text: 'Success', tone: 'good' },
-  partial: { text: 'Partial', tone: 'warning' },
-  failed: { text: 'Failed', tone: 'bad' },
-  rejected: { text: 'Refused', tone: 'bad' },
-};
-
 function effectTone(line: string) {
   if (/[+]\d/.test(line)) return 'text-good-strong';
   if (/[−-]\d/.test(line)) return 'text-whip-dark';
@@ -39,7 +33,7 @@ function effectTone(line: string) {
 
 /** One action's result, stamped. The stamps land one after another. */
 function Outcome({ outcome, index }: { outcome: ActionOutcome; index: number }) {
-  const stamp = STAMP[outcome.status];
+  const stamp = OUTCOME_STAMP[outcome.status];
   return (
     <li className="relative grid gap-1.5 border-t border-ink/30 py-3 first:border-t-0 first:pt-0">
       <div className="flex items-start justify-between gap-3">
@@ -53,6 +47,7 @@ function Outcome({ outcome, index }: { outcome: ActionOutcome; index: number }) 
         </div>
         <Stamp
           tone={stamp.tone}
+          {...(stamp.image ? { image: stamp.image } : {})}
           size="sm"
           angle={index % 2 ? 4 : -5}
           className="shrink-0 animate-stamp"

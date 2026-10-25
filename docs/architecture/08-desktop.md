@@ -24,7 +24,7 @@ apps/desktop/                       @whip/desktop
     src/session.rs                  session_token_get/set/clear → keyring (OS credential store)
     src/shell.js                    injected before the SPA: F11/Alt+Enter, show-on-boot-ready,
                                     release-only blocking of browser keys / context menu / ctrl-zoom
-    icons/                          generated: `pnpm --filter @whip/desktop icons` (docs/brand/Whip-Icon.svg)
+    icons/                          generated: `pnpm --filter @whip/desktop icons` (icons/source/app-icon.png, built by `pnpm images:build`); installer/ holds the NSIS sidebar + header BMPs
 
 apps/web/src/platform/              platform adapter (web + desktop), see §5
 apps/web/.env.desktop               VITE_API_BASE=https://playwhip.com (packaged build)
@@ -339,7 +339,7 @@ No `vite.config.ts` or `package.json` change is needed in apps/web. The desktop 
 | `pnpm --filter @whip/desktop build:web` | SPA only, desktop mode → `apps/desktop/dist` |
 | `pnpm --filter @whip/desktop tauri build --bundles nsis` | Release build + signed NSIS installer (needs the signing env vars, §3) |
 | `pnpm --filter @whip/desktop tauri build --debug --bundles nsis` | Bundled SPA against `VITE_API_BASE` with devtools: the way to test against production or staging from the real `tauri.localhost` origin |
-| `pnpm --filter @whip/desktop icons` | Regenerate icons from `docs/brand/Whip-Icon.svg` (then delete the generated `android/`, `ios/`, `Square*`, `StoreLogo`) |
+| `pnpm --filter @whip/desktop icons` | Regenerate icons from `icons/source/app-icon.png` (the painted whip; `pnpm images:build` makes it from `apps/web/art-src/desktop/`) (then delete the generated `android/`, `ios/`, `Square*`, `StoreLogo`) |
 | API override | `apps/web/.env.desktop.local`: `VITE_API_BASE=https://whip-staging.<acct>.workers.dev` or `http://localhost:8787`. The CSP `connect-src` already allows `*.workers.dev` and localhost:8787. Staging/local Workers must run this API version (CORS) |
 
 Debugging a release build: launch `WHIP.exe` with

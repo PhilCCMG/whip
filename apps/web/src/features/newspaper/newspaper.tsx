@@ -5,7 +5,15 @@ import { usePolitician } from '../../api/hooks';
 import type { Article, Newspaper, NewspaperSectionKey } from '../../api/types';
 import { formatLongDate } from '../../lib/format';
 import { campaignPath } from '../../lib/params';
-import { captionFor, mastheadArt, photoFor, type MastheadArt } from './art';
+import { textureStyle } from '../../game-ui/textures';
+import {
+  captionFor,
+  mastheadArt,
+  photoFor,
+  spotsForPaper,
+  type MastheadArt,
+  type SpotArt,
+} from './art';
 import { headlineClass, paperKind, type PaperKind } from './paper-style';
 
 /** Sections that run down the narrow column beside the main stories. */
@@ -234,6 +242,7 @@ export function ArticleView({
   className,
   showBody = true,
   photo,
+  spot,
 }: {
   article: Article;
   kind: PaperKind;
@@ -245,9 +254,12 @@ export function ArticleView({
   showBody?: boolean;
   /** A picture under the headline (the lead story only), with the text wrapping beside it. */
   photo?: ReactNode;
+  /** A small cut-out picture beside a filler story (`spotsForPaper`). */
+  spot?: SpotArt | undefined;
 }) {
   return (
-    <article className={cn('min-w-0', photo && 'flow-root', className)}>
+    <article className={cn('min-w-0', (photo || spot) && 'flow-root', className)}>
+      {spot && <SpotPicture spot={spot} />}
       <Tag className={cn('text-balance', headlineClass(kind, importance ?? article.importance))}>
         {article.headline}
       </Tag>
@@ -307,6 +319,26 @@ export function LeadPhoto({ article }: { article: Article }) {
   );
 }
 
+/**
+ * A filler story's spot: the cut-out picture a local paper drops beside a story, floated right
+ * with the headline and text running round it. No frame, no caption; decoration, so empty alt.
+ */
+function SpotPicture({ spot }: { spot: SpotArt }) {
+  return (
+    <img
+      src={spot.src}
+      width={spot.width}
+      height={spot.height}
+      alt=""
+      data-spot={spot.key}
+      loading="lazy"
+      decoding="async"
+      draggable={false}
+      className="pointer-events-none float-right mb-1 ml-3 h-auto w-[5.5rem] select-none sm:w-24"
+    />
+  );
+}
+
 function SectionLabel({ kind, children }: { kind: PaperKind; children: ReactNode }) {
   if (kind === 'tabloid') {
     return (
@@ -336,10 +368,12 @@ function SmallSection({
   section,
   kind,
   campaignId,
+  spots,
 }: {
   section: Newspaper['sections'][number];
   kind: PaperKind;
   campaignId: string;
+  spots: ReadonlyMap<string, SpotArt>;
 }) {
   return (
     <section aria-label={section.title} className="min-w-0">
@@ -356,6 +390,7 @@ function SmallSection({
               campaignId={campaignId}
               as="h5"
               importance={Math.min(a.importance, 2)}
+              spot={spots.get(a.id)}
             />
           </li>
         ))}
@@ -547,6 +582,8 @@ export function NewspaperPage({
   const narrow = compact ? side.slice(0, 2) : side;
   const hasSide = !!insert || narrow.length > 0;
   const backPages = compact ? [] : back;
+  // Spots go only to sections this page prints, so the cap is not spent on unprinted ones.
+  const spots = spotsForPaper([...narrow, ...backPages]);
   const { mainRef, asideRef, pull, into, adIn } = useBalancedColumns(
     hasSide ? backPages.length : 0,
   );
@@ -556,7 +593,8 @@ export function NewspaperPage({
 
   return (
     <PaperSheet
-      className={cn('px-4 pt-4 pb-6 md:px-7', SHEET[kind], className)}
+      className={cn('paper-texture px-4 pt-4 pb-6 md:px-7', SHEET[kind], className)}
+      style={textureStyle('newsprint')}
       aria-labelledby={titleId}
     >
       <PaperMasthead paper={paper} kind={kind} aside={aside} {...(titleId ? { titleId } : {})} />
@@ -609,7 +647,13 @@ export function NewspaperPage({
             {into === 'main' && pulled.length > 0 && (
               <div className="order-5 grid gap-x-6 gap-y-5 border-t-[3px] border-ink pt-3 sm:grid-cols-2">
                 {pulled.map((s) => (
-                  <SmallSection key={s.key} section={s} kind={kind} campaignId={campaignId} />
+                  <SmallSection
+                    key={s.key}
+                    section={s}
+                    kind={kind}
+                    campaignId={campaignId}
+                    spots={spots}
+                  />
                 ))}
               </div>
             )}
@@ -626,14 +670,26 @@ export function NewspaperPage({
               {narrow.length > 0 && (
                 <div className="order-4 grid content-start gap-5 max-lg:border-t max-lg:border-ink max-lg:pt-4">
                   {narrow.map((s) => (
-                    <SmallSection key={s.key} section={s} kind={kind} campaignId={campaignId} />
+                    <SmallSection
+                      key={s.key}
+                      section={s}
+                      kind={kind}
+                      campaignId={campaignId}
+                      spots={spots}
+                    />
                   ))}
                 </div>
               )}
               {into === 'aside' && pulled.length > 0 && (
                 <div className="order-5 grid content-start gap-5 border-t-[3px] border-ink pt-3">
                   {pulled.map((s) => (
-                    <SmallSection key={s.key} section={s} kind={kind} campaignId={campaignId} />
+                    <SmallSection
+                      key={s.key}
+                      section={s}
+                      kind={kind}
+                      campaignId={campaignId}
+                      spots={spots}
+                    />
                   ))}
                 </div>
               )}
@@ -651,7 +707,13 @@ export function NewspaperPage({
           )}
         >
           {rest.map((s) => (
-            <SmallSection key={s.key} section={s} kind={kind} campaignId={campaignId} />
+            <SmallSection
+              key={s.key}
+              section={s}
+              kind={kind}
+              campaignId={campaignId}
+              spots={spots}
+            />
           ))}
         </div>
       )}

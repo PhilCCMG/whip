@@ -20,7 +20,14 @@ on the Credits screen, whatever its licence.
 | Location backdrops (Office, Chamber, Division Lobby, Tea Room, Party HQ, Archive) | `apps/web/src/assets/art/bg/*.webp` (masters `apps/web/art-src/backdrops/`) | CheatCode Media Group (commissioned via image generation, 2026-10-25) | No |
 | Newspaper photos (press scrum, lobby, reshuffle door, podium, hustings, Commons exterior) | `apps/web/src/assets/art/news/*.webp` (masters `apps/web/art-src/news/`) | CheatCode Media Group (image generation, 2026-10-25). No real people depicted; faces are generic or blurred | No |
 | Newspaper mastheads (The Morning Whip, The Daily Clarion, The Westminster Gazette) | `apps/web/src/assets/art/mastheads/*.webp` (masters `apps/web/art-src/mastheads/`) | CheatCode Media Group (image generation, 2026-10-25). The Gazette's generated crowned-portcullis crest is removed in the build (too close to Parliament's emblem) | No |
+| Newspaper filler spot art (10) | `apps/web/src/assets/art/spots/*.webp` (masters `apps/web/art-src/spots/`) | CheatCode Media Group (image generation, 2026-10-25) | No |
+| Rubber stamps (11) | `apps/web/src/assets/art/stamps/*.webp` (cut from `apps/web/art-src/stamps/sheet.png` and `round.png`) | CheatCode Media Group (image generation, 2026-10-25). The first sheet's round stamps (portcullis crest) are deliberately not used | No |
+| Paper and leather textures (5) | `apps/web/src/assets/art/textures/*.webp` (cut from `apps/web/art-src/textures/atlas.png`, mirrored 2×2) | CheatCode Media Group (image generation, 2026-10-25) | No |
 | Menu background painting | `apps/web/src/assets/menu-bg.jpg` (master `docs/brand/menu-background.png`) | CheatCode Media Group | No |
 | Fonts: Archivo, Inter | `@fontsource-variable/*` | SIL Open Font License 1.1 | No (licence travels with the font files) |
 
 Studio and game marks (`docs/brand/`) are owned by CheatCode Media Group Ltd.
+
+Desktop: the app icon (`apps/desktop/src-tauri/icons/*`, source `icons/source/app-icon.png`) and
+the NSIS installer sidebar/header (`icons/installer/*.bmp`) are CheatCode Media Group artwork
+(image generation, 2026-10-25), built from `apps/web/art-src/desktop/` by `pnpm images:build`.

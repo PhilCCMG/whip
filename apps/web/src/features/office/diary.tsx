@@ -5,6 +5,7 @@ import { useCancelAction } from '../../api/hooks';
 import type { CareerOverview, PlannedAction } from '../../api/types';
 import { DeskHeading } from '../../game-ui/game-screen';
 import { isEditable, modalOpen } from '../../game-ui/keys';
+import { textureStyle } from '../../game-ui/textures';
 import { addDays, formatShortDate, parseSimDate, plural, weekdayName } from '../../lib/format';
 import { toast } from '../../stores/toast-store';
 import { useUiStore } from '../../stores/ui-store';
@@ -130,8 +131,11 @@ export function Diary({ overview }: { overview: CareerOverview }) {
           return (
             <li
               key={cell.start}
-              className="flex min-h-[15rem] flex-col bg-paper-bright text-ink max-md:col-span-full! max-md:min-h-0"
-              style={{ gridColumn: `span ${cell.span} / span ${cell.span}` }}
+              className="paper-texture relative flex min-h-[15rem] flex-col bg-paper-bright text-ink max-md:col-span-full! max-md:min-h-0"
+              style={{
+                ...textureStyle('diary-page'),
+                gridColumn: `span ${cell.span} / span ${cell.span}`,
+              }}
             >
               {/* Page head: weekday and a big date numeral, like a desk diary. */}
               <div className="flex items-end justify-between gap-2 border-b-2 border-ink px-3 pt-2 pb-1.5">

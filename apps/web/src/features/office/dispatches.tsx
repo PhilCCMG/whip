@@ -3,6 +3,7 @@ import { isApiError } from '../../api/errors';
 import { usePlanAction } from '../../api/hooks';
 import type { CareerOverview, PendingEvent } from '../../api/types';
 import { DeskHeading } from '../../game-ui/game-screen';
+import { textureStyle } from '../../game-ui/textures';
 import { plural } from '../../lib/format';
 import { toast } from '../../stores/toast-store';
 
@@ -29,7 +30,8 @@ function Dispatch({
       tilt={index % 2 === 0 ? 'left' : 'right'}
       aria-labelledby={titleId}
       data-tutorial={index === 0 ? 'dispatch' : undefined}
-      className="outline-2 outline-ink"
+      className="paper-texture outline-2 outline-ink"
+      style={textureStyle('dispatch-card')}
     >
       <div className="flex items-center justify-between gap-3 bg-ink px-4 py-2 text-paper-bright">
         <Kicker>Dispatch · week {event.raisedOnTurn}</Kicker>

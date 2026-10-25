@@ -1,7 +1,7 @@
 [package]
 name = "whip-desktop"
 # The app version lives in tauri.conf.json (synced by `pnpm --filter @whip/desktop version:bump`).
-version = "0.1.2"
+version = "0.1.3"
 description = "WHIP — UK political career strategy game (desktop client)"
 authors = ["CheatCode Media"]
 license = "UNLICENSED"

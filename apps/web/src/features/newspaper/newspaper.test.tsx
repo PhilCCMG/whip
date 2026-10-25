@@ -4,7 +4,7 @@ import type { Newspaper } from '../../api/types';
 import { CAMPAIGN_ID } from '../../mocks/fixtures';
 import { newspaperFixture, openingNewspaperFixture } from '../../mocks/newspaper-fixture';
 import { renderApp } from '../../test/render-app';
-import { captionFor, PHOTOS, photoFor } from './art';
+import { captionFor, MAX_SPOTS, PHOTOS, photoFor, SPOTS } from './art';
 import { NewspaperPage } from './newspaper';
 
 function renderPaper(paper: Newspaper, compact = false) {
@@ -118,5 +118,64 @@ describe('photoFor', () => {
       expect(captionFor(p, 'ed5-01')).toBe(captionFor(p, 'ed5-01'));
       expect(p.captions).toContain(captionFor(p, 'anything'));
     }
+  });
+});
+
+describe('filler spot art', () => {
+  const spotImages = () => [...document.querySelectorAll<HTMLImageElement>('img[data-spot]')];
+
+  it('puts the raincloud in the Weather box, floated beside the forecast, as decoration', async () => {
+    renderPaper(newspaperFixture);
+    const weather = await screen.findByRole('region', { name: 'Weather' });
+    const img = weather.querySelector('img[data-spot]');
+    expect(img).toHaveAttribute('data-spot', 'weather');
+    expect(img).toHaveAttribute('src', SPOTS.weather.src);
+    expect(img).toHaveAttribute('alt', '');
+    expect(img).toHaveClass('float-right');
+    expect(img!.closest('figure')).toBeNull(); // no frame, no caption
+    // The gnome matches nothing, so And Finally prints no picture.
+    const finally_ = screen.getByRole('region', { name: 'And Finally…' });
+    expect(finally_.querySelector('img[data-spot]')).toBeNull();
+  });
+
+  it('pictures a filler story that names its subject, and never a political one', async () => {
+    const swan = {
+      id: 'spot-swan',
+      headline: 'Swan delays Commons committee by sitting on the minutes',
+      standfirst: 'Members could not approve the record of the previous meeting for an hour.',
+      importance: 1,
+      filler: true,
+      refs: [],
+    };
+    const paper: Newspaper = {
+      ...newspaperFixture,
+      sections: newspaperFixture.sections.map((s) =>
+        s.key === 'and_finally' ? { ...s, articles: [swan, ...s.articles] } : s,
+      ),
+    };
+    renderPaper(paper);
+    const h = await screen.findByRole('heading', { name: swan.headline });
+    expect(h.closest('article')!.querySelector('img[data-spot]')).toHaveAttribute(
+      'data-spot',
+      'swan',
+    );
+    expect(spotImages().length).toBeLessThanOrEqual(MAX_SPOTS);
+    const politicsTitle = paper.sections.find((s) => s.key === 'politics')!.title;
+    const politics = screen.getByRole('region', { name: politicsTitle });
+    expect(politics.querySelector('img[data-spot]')).toBeNull();
+    expect(
+      screen
+        .getByRole('heading', { level: 3, name: paper.lead.headline })
+        .closest('article')!
+        .querySelector('img[data-spot]'),
+    ).toBeNull();
+  });
+
+  it('prints the paper on newsprint, under its own paper colour', async () => {
+    renderPaper(newspaperFixture);
+    const heading = await screen.findByRole('heading', { level: 2 });
+    const sheet = heading.closest('section')!;
+    expect(sheet).toHaveClass('paper-texture');
+    expect(sheet.style.getPropertyValue('--paper-texture')).toMatch(/newsprint.*\.webp/);
   });
 });

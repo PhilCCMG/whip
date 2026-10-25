@@ -178,21 +178,77 @@ const stampTone = {
   paper: 'text-paper-bright border-paper-bright',
 } as const;
 
+/** A scanned rubber-stamp mark (transparent, already a little rotated). Supplied by the app. */
+export interface StampImage {
+  src: string;
+  width: number;
+  height: number;
+  /** A round seal: sized by its diameter rather than as a strip of type. */
+  round?: boolean;
+}
+
+const stampImageHeight = {
+  sm: 'h-8',
+  md: 'h-12',
+  lg: 'h-20',
+} as const;
+
+const roundImageHeight = {
+  sm: 'h-12',
+  md: 'h-20',
+  lg: 'h-28',
+} as const;
+
 export interface StampProps extends React.ComponentProps<'span'> {
   tone?: keyof typeof stampTone;
   size?: 'sm' | 'md' | 'lg';
   /** Rotation in degrees (stamps are never quite straight). */
   angle?: number;
+  /**
+   * The inked mark to print instead of the type-set word. The children stay as the stamp's
+   * (visually hidden) text, so its accessible name and text content do not change. The scan
+   * carries its own ink colour; only `tone="paper"` re-inks it light, for dark surfaces.
+   */
+  image?: StampImage;
 }
 
 export function Stamp({
   tone = 'ink',
   size = 'md',
   angle = -4,
+  image,
   className,
   style,
+  children,
   ...props
 }: StampProps) {
+  if (image) {
+    return (
+      <span
+        data-stamp-image=""
+        className={cn('relative inline-block leading-none', className)}
+        // The scan is already askew: half the rotation keeps a run of stamps uneven.
+        style={{ rotate: `${angle / 2}deg`, ...style }}
+        {...props}
+      >
+        <img
+          src={image.src}
+          width={image.width}
+          height={image.height}
+          alt=""
+          aria-hidden="true"
+          decoding="async"
+          draggable={false}
+          className={cn(
+            'block w-auto max-w-none select-none',
+            (image.round ? roundImageHeight : stampImageHeight)[size],
+            tone === 'paper' && '[filter:brightness(0)_invert(0.97)]',
+          )}
+        />
+        <span className="sr-only">{children}</span>
+      </span>
+    );
+  }
   return (
     <span
       className={cn(
@@ -205,7 +261,9 @@ export function Stamp({
       )}
       style={{ rotate: `${angle}deg`, ...style }}
       {...props}
-    />
+    >
+      {children}
+    </span>
   );
 }
 

@@ -47,6 +47,56 @@ const MASTHEADS = [
   },
 ];
 
+/** Newspaper filler spot art: single subjects on transparent backgrounds. */
+const SPOTS = [
+  'weather',
+  'tortoise',
+  'swan',
+  'bus-shelter',
+  'scarecrow',
+  'parish-council',
+  'cat-ministerial-car',
+  'pothole',
+  'llama',
+  'marrow',
+];
+
+/**
+ * Rubber stamps cut from generated sheets (art-src/stamps/), as `x:y:w:h` crops. The sheet's own
+ * round NOTED/DIVISION stamps carried a portcullis crest and are not used; the round ones come
+ * from the second sheet (tick and lobby arrows).
+ */
+const STAMP_SHEETS = {
+  'sheet.png': {
+    success: '32:32:560:272',
+    partial: '612:28:552:268',
+    backfired: '1168:0:600:300',
+    failed: '36:300:540:264',
+    noted: '624:296:520:268',
+    division: '1200:304:560:264',
+    carried: '20:588:392:248',
+    defeated: '414:580:398:256',
+    confidential: '814:576:380:264',
+  },
+  'round.png': {
+    'noted-round': '32:48:848:800',
+    'division-round': '904:48:840:816',
+  },
+};
+
+/**
+ * Paper and leather tiles cut from the texture atlas (art-src/textures/atlas.png), then mirrored
+ * 2×2 so every edge meets its own reflection: seamless by construction.
+ */
+const TEXTURES = {
+  newsprint: '20:20:480:480',
+  'dispatch-card': '528:20:480:480',
+  'diary-page': '1036:20:480:480',
+  'red-folder': '20:524:480:480',
+  'green-leather': '528:524:480:480',
+};
+const MIRROR_2X2 = 'split[a][b];[b]hflip[h];[a][h]hstack,split[t][u];[u]vflip[v];[t][v]vstack';
+
 function findFfmpeg() {
   const candidates = [process.env.FFMPEG, 'ffmpeg', ...FFMPEG_FALLBACKS].filter(Boolean);
   for (const bin of candidates) {
@@ -102,7 +152,8 @@ function alphaBox(input, pre) {
   return { w, h, x, y };
 }
 
-for (const dir of ['bg', 'news', 'mastheads']) mkdirSync(join(OUT, dir), { recursive: true });
+for (const dir of ['bg', 'news', 'mastheads', 'spots', 'stamps', 'textures'])
+  mkdirSync(join(OUT, dir), { recursive: true });
 
 for (const name of BACKDROPS) {
   const input = join(SRC, 'backdrops', `${name}.png`);
@@ -147,4 +198,107 @@ for (const m of MASTHEADS) {
   const out = join(OUT, 'mastheads', `${m.name}.webp`);
   webp(input, out, filter, 80);
   console.log(`mast  ${m.name.padEnd(20)} ${kb(input).padStart(8)} → ${kb(out)}`);
+}
+
+for (const name of SPOTS) {
+  const input = join(SRC, 'spots', `${name}.png`);
+  if (!existsSync(input)) {
+    console.warn(`skip spot ${name}: master missing`);
+    continue;
+  }
+  const out = join(OUT, 'spots', `${name}.webp`);
+  // Printed small in the paper's back pages: 480px covers 2× at ~240 CSS px.
+  webp(input, out, "format=rgba,scale='min(480,iw)':-2:flags=lanczos", 72);
+  console.log(`spot  ${name.padEnd(20)} ${kb(input).padStart(8)} → ${kb(out)}`);
+}
+
+for (const [sheet, crops] of Object.entries(STAMP_SHEETS)) {
+  const input = join(SRC, 'stamps', sheet);
+  if (!existsSync(input)) {
+    console.warn(`skip stamps from ${sheet}: master missing`);
+    continue;
+  }
+  for (const [name, box] of Object.entries(crops)) {
+    const [w, h, x, y] = (() => {
+      const [bx, by, bw, bh] = box.split(':');
+      return [bw, bh, bx, by];
+    })();
+    const out = join(OUT, 'stamps', `${name}.webp`);
+    webp(
+      input,
+      out,
+      // Stamps show at ~160 CSS px wide; 320 covers 2×.
+      `format=rgba,crop=${w}:${h}:${x}:${y},scale='min(320,iw)':-2:flags=lanczos`,
+      75,
+    );
+    console.log(`stamp ${name.padEnd(20)} → ${kb(out)}`);
+  }
+}
+
+{
+  const input = join(SRC, 'textures', 'atlas.png');
+  if (!existsSync(input)) {
+    console.warn('skip textures: atlas missing');
+  } else {
+    for (const [name, box] of Object.entries(TEXTURES)) {
+      const [x, y, w, h] = box.split(':');
+      const out = join(OUT, 'textures', `${name}.webp`);
+      webp(input, out, `crop=${w}:${h}:${x}:${y},${MIRROR_2X2},scale=768:768:flags=lanczos`, 60);
+      console.log(`tex   ${name.padEnd(20)} → ${kb(out)}`);
+    }
+  }
+}
+
+/*
+ * Desktop (apps/desktop/src-tauri/icons): the app-icon source for `tauri icon`, and the NSIS
+ * installer bitmaps (BMP at exact pixel sizes: sidebar 164×314, header 150×57).
+ * After rebuilding the icon source, run `pnpm --filter @whip/desktop icons`.
+ */
+{
+  const ICONS = join(root, 'apps/desktop/src-tauri/icons');
+  mkdirSync(join(ICONS, 'source'), { recursive: true });
+  mkdirSync(join(ICONS, 'installer'), { recursive: true });
+  const icon = join(SRC, 'desktop', 'app-icon.png');
+  if (existsSync(icon)) {
+    // The generated tile is opaque with black corners and a baked shadow: cut a clean
+    // rounded square (radius ≈ 23% of the side, inset 14px) with an anti-aliased edge.
+    const mask =
+      "format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':" +
+      "a='clip((290.5-hypot(max(0,abs(X-626.5)-322.5),max(0,abs(Y-626.5)-322.5)))*255,0,255)'";
+    const out = join(ICONS, 'source', 'app-icon.png');
+    run([
+      '-y',
+      '-i',
+      icon,
+      '-map_metadata',
+      '-1',
+      '-vf',
+      `${mask},scale=1024:1024:flags=lanczos`,
+      out,
+    ]);
+    console.log(`icon  app-icon             → ${kb(out)}`);
+  } else console.warn('skip app icon: master missing');
+
+  const bmp = (master, crop, size, name) => {
+    const input = join(SRC, 'desktop', master);
+    if (!existsSync(input)) return console.warn(`skip ${name}: master missing`);
+    const out = join(ICONS, 'installer', name);
+    run([
+      '-y',
+      '-i',
+      input,
+      '-vf',
+      `${crop},scale=${size}:flags=lanczos`,
+      '-c:v',
+      'bmp',
+      '-pix_fmt',
+      'bgr24',
+      '-frames:v',
+      '1',
+      out,
+    ]);
+    console.log(`nsis  ${name.padEnd(20)} → ${kb(out)}`);
+  };
+  bmp('installer-sidebar.png', 'crop=802:1536:170:0', '164:314', 'sidebar.bmp');
+  bmp('installer-banner.png', 'crop=936:356:600:300', '150:57', 'header.bmp');
 }

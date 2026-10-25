@@ -46,6 +46,27 @@
   scrollbar-color: color-mix(in oklab, currentColor 25%, transparent) transparent;
 }
 
+/*
+ * A paper texture under a sheet's own colour (09-game-ui.md §13): the tile in --paper-texture
+ * (set inline by `textureStyle`) multiplies into the background colour at low opacity, behind the
+ * content. The element must be positioned; `isolate` keeps the layer inside it.
+ */
+@utility paper-texture {
+  isolation: isolate;
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: var(--paper-texture);
+    background-repeat: repeat;
+    background-size: var(--paper-texture-size, 384px);
+    mix-blend-mode: multiply;
+    opacity: var(--paper-texture-opacity, 0.3);
+  }
+}
+
 /* Main menu: the backdrop's slow Ken Burns drift, the title prompt's breathe and the news crawl. */
 @keyframes whip-drift {
   from {

@@ -234,8 +234,9 @@ The office briefing uses `compact` (four politics stories, no back pages).
 ## 13. Art
 
 Painted illustrations in the menu painting's style (teal-black, vermilion, amber lamplight).
-Registries: `game-ui/scenes.ts` (`SCENES`) and `features/newspaper/art.ts`
-(`mastheadArt`, `PHOTOS`, `photoFor`).
+Registries: `game-ui/scenes.ts` (`SCENES`), `features/newspaper/art.ts` (`mastheadArt`,
+`PHOTOS`, `photoFor`, `SPOTS`, `spotsForPaper`), `game-ui/stamps.ts` (`STAMPS`, `stampImage`,
+`OUTCOME_STAMP`, `verdictStamp`) and `game-ui/textures.ts` (`textureStyle`).
 
 | Art | Where |
 |---|---|
@@ -243,6 +244,14 @@ Registries: `game-ui/scenes.ts` (`SCENES`) and `features/newspaper/art.ts`
 | `bg/division-lobby` | behind the header band of every `DivisionTally` (turn report, Chamber division lists) |
 | `mastheads/*` | `PaperMasthead` for The Morning Whip, The Daily Clarion, The Westminster Gazette |
 | `news/*` | the lead story's photo (`LeadPhoto`; full paper only, not the compact office briefing) |
+| `spots/*` | small cut-out pictures beside filler stories (Weather, And Finally, Around the Constituencies) |
+| `stamps/success` `partial` `failed` | "Your week" outcome stamps in the turn report |
+| `stamps/carried` `defeated` | the verdict in every `DivisionTally` and the Chamber's division list |
+| `stamps/division` | the Division stamp on the Archive's front-page cuttings |
+| `stamps/noted-round` | the tutorial's graduation seal |
+| `textures/newsprint` | every `NewspaperPage` sheet (turn report, office briefing) |
+| `textures/dispatch-card` | the dispatch (pending event) cards on the Office desk |
+| `textures/diary-page` | the Office diary's day pages |
 
 - **Scrim rule.** A painting behind UI always sits under one flat ink layer: `bg-ink/86` for the
   full-screen backdrop, `bg-ink/80` for the tally band. At those values even a white pixel
@@ -262,6 +271,51 @@ Registries: `game-ui/scenes.ts` (`SCENES`) and `features/newspaper/art.ts`
   commons-exterior), then the refs, and falls back to press-scrum. Each photo has a descriptive
   alt and its own deadpan caption pool; the caption is chosen by a hash of the article id. To add
   a photo, add it to `PHOTOS` and give it a rule.
+- **Filler spots** come from `spotsForPaper`, over the sections the page actually prints. The
+  first Weather story always gets `weather`. Then filler stories in And Finally and Around the
+  Constituencies are matched on headline, standfirst and body against a priority list (cat →
+  cat-ministerial-car, swan, tortoise, llama, scarecrow, marrow / vegetable / produce show /
+  allotment → marrow, bus → bus-shelter, pothole / road / speed bump → pothole, and parish /
+  council last → parish-council). Whole words only, so a councillor is not a council. No match
+  means no picture: there is no fallback. Each picture runs once a paper, and there are at most
+  `MAX_SPOTS` (3) a paper with the Weather box's included. A story not marked `filler`, and
+  anything in Politics, Letters, Sport, Classifieds or Corrections, never gets one. A spot is a
+  plain `<img>` floated right (88–96px) with the text running round it: no frame, no caption,
+  empty alt. To add one, add it to `SPOTS` and give it a rule.
+- **Stamps.** `Stamp` (@whip/ui) takes an optional `image` (`StampImage`). With one, it prints
+  the scan instead of the type-set word and keeps the word as visually hidden text, so its
+  accessible name and `getByText` stay the same. The image is `aria-hidden` with empty alt. The
+  wrapper keeps `className` and `style`, so `animate-stamp` and its `animationDelay` (and
+  the stamp sounds synced to them in `turn-report-sounds.ts`) do not change. The scan is already
+  askew, so it turns by half the `angle`. `tone="paper"` re-inks a scan light for ink surfaces,
+  which is how CARRIED shows on the division tally; other tones keep the scan's own ink. The app
+  supplies the marks, and packages/ui never imports app assets. A mark must print the stamp's word:
+  `stampImage` matches the word exactly, so outcomes map succeeded → SUCCESS, partial → PARTIAL,
+  failed → FAILED, and a verdict maps passed → CARRIED and not passed → DEFEATED. A rejected action
+  keeps the type-set REFUSED, because there is no mark for it. The same goes for Royal Assent and
+  the Archive's other words. The round seals are for seals, not words: `noted-round` is the
+  tutorial's graduation seal (its hidden word is "Noted", with "Induction complete" set beside
+  it). Unused for now: `backfired` (no outcome backfires), `confidential`, `noted` and
+  `division-round` (no stamp prints those words, and no "division called" stamp exists).
+- **Paper textures** are tiles (768px, shown at 384 CSS px) under the sheet's own paper colour:
+  the `paper-texture` utility (styles.css) puts the tile from `textureStyle(key)` in a `::before`
+  behind the content, `mix-blend-mode: multiply` at low opacity. The sheet must be positioned.
+  Opaque children, such as ink bands, buttons and photos, cover it. Opacities are 0.25 for
+  newsprint and 0.3 for the dispatch card and diary page. Contrast on the darkest pixel of each
+  tile:
+
+  | Text on | ink/85 (body) | ink/75 | ink/65 (bylines; untextured) |
+  |---|---|---|---|
+  | newsprint on `paper-bright` (tabloid) | 8.0 | 6.0 | 4.5 (5.3) |
+  | newsprint on `paper` (broadsheet) | 7.5 | 5.7 | 4.4 (5.1) |
+  | newsprint on `paper-deep` (record) | 6.8 | 5.3 | 4.1 (4.8) |
+  | dispatch-card on `paper-bright` | 7.6 | 5.8 | 4.4 (5.3) |
+  | diary-page on `paper-bright` | 7.9 | 6.0 | 4.5 (5.3) |
+
+  Body and secondary text stay at AA on the darkest grain. ink/65 dips under 4.5 only on stray
+  specks, and is 4.6–5.1 on the median grain. Don't raise an opacity without re-checking. The
+  `red-folder` and `green-leather` tiles are not used, because no flat surface in the UI is a red
+  folder or the green benches (the Chamber is drawn flat on purpose).
 - **New art** goes in `apps/web/art-src/` (masters, git-ignored) and through
   `node scripts/build-images.mjs` (`pnpm images:build`), which writes the WebP files to
   `apps/web/src/assets/art/`. Never import or ship a raw PNG.

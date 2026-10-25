@@ -3,8 +3,9 @@ import type { DivisionResult } from '../api/types';
 import { PoliticianLink } from '../components/politician-bits';
 import { formatSimDate } from '../lib/format';
 import { CountUp } from './count-up';
-import { divisionAnnouncement, divisionVerdict } from './division-copy';
+import { divisionAnnouncement } from './division-copy';
 import { SceneImage } from './location-backdrop';
+import { verdictStamp } from './stamps';
 
 const voteLabel = { aye: 'Aye', no: 'No', abstain: 'Abstained' } as const;
 
@@ -28,6 +29,7 @@ export function DivisionTally({
   const total = Math.max(1, division.ayes + division.noes + division.abstentions);
   const majority = Math.abs(division.ayes - division.noes);
   const { tellers, verdict } = divisionAnnouncement(division);
+  const mark = verdictStamp(division);
   const biggest = Math.max(1, ...division.byParty.map((p) => p.ayes + p.noes + p.abstentions));
   const colourOf = (short: string) => division.byParty.find((p) => p.shortName === short)?.colour;
   const H = headingLevel;
@@ -70,13 +72,14 @@ export function DivisionTally({
               {division.governmentWon ? 'Government win' : 'Government defeat'}
             </Plate>
             <Stamp
-              tone={division.passed ? 'paper' : 'bad'}
+              tone={mark.tone}
+              {...(mark.image ? { image: mark.image } : {})}
               size="lg"
               angle={-5}
               className="animate-stamp"
               style={{ animationDelay: `${VERDICT_STAMP_DELAY_MS}ms` }}
             >
-              {divisionVerdict(division)}
+              {mark.text}
             </Stamp>
           </div>
         </header>

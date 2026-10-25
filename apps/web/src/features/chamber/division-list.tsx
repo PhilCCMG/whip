@@ -2,8 +2,8 @@ import { cn, Stamp } from '@whip/ui';
 import { useRef, useState, type KeyboardEvent } from 'react';
 import type { DivisionResult } from '../../api/types';
 import { DispatchFrame } from '../../game-ui/dispatch-frame';
-import { divisionVerdict } from '../../game-ui/division-copy';
 import { DivisionTally } from '../../game-ui/division-tally';
+import { verdictStamp } from '../../game-ui/stamps';
 import { formatSimDate } from '../../lib/format';
 import { uiSound } from '../audio/use-ui-sound';
 
@@ -49,6 +49,7 @@ export function DivisionList({
       <ul aria-label="Recent divisions" onKeyDown={onKey} className="grid gap-[2px]">
         {divisions.map((d, i) => {
           const total = Math.max(1, d.ayes + d.noes + d.abstentions);
+          const mark = verdictStamp(d);
           return (
             <li key={d.id}>
               <button
@@ -99,12 +100,13 @@ export function DivisionList({
                 </span>
                 <span className="flex items-center gap-3 max-md:col-start-2 max-md:row-start-2">
                   <Stamp
-                    tone={d.passed ? 'paper' : 'bad'}
+                    tone={mark.tone}
+                    {...(mark.image ? { image: mark.image } : {})}
                     size="sm"
                     angle={i % 2 ? 3 : -4}
-                    className={cn(!d.governmentWon && 'bg-ink')}
+                    className={cn(!mark.image && !d.governmentWon && 'bg-ink')}
                   >
-                    {divisionVerdict(d)}
+                    {mark.text}
                   </Stamp>
                   <span
                     aria-hidden="true"

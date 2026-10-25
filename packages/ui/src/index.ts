@@ -64,6 +64,7 @@ export {
   type PlateProps,
   type DisplayTitleProps,
   type SheetPaperProps,
+  type StampImage,
   type StampProps,
   type ResourceCounterProps,
   type CostChipProps,
